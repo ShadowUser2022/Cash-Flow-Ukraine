@@ -5,10 +5,10 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
-    "start": "node scripts/server.js",
+    "start": "node cashflow-server-enhanced.js",
     "dev": "nodemon src/index.ts",
-    "dev:enhanced": "node scripts/server.js",
-    "start:production": "NODE_ENV=production node scripts/server.js",
+    "dev:enhanced": "node cashflow-server-enhanced.js",
+    "start:production": "NODE_ENV=production node cashflow-server-enhanced.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "clean": "rm -rf dist",
     "lint": "tslint src/**/*.ts",
