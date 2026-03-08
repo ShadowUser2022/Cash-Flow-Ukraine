@@ -1,31 +1,34 @@
-import React, { useState } from 'react';
-import { ValidatedInput } from '../ValidatedInput/ValidatedInput';
-import { ValidationRules } from '../../utils/validation';
-import './SimpleLobby.css';
+import React, { useState } from "react";
+import { ValidatedInput } from "../ValidatedInput/ValidatedInput";
+import { ValidationRules } from "../../utils/validation";
+import config from "../../config/api";
+import "./SimpleLobby.css";
 
 interface SimpleLobbyProps {
   onGameJoined: (gameId: string, playerId: string) => void;
 }
 
 const SimpleLobby: React.FC<SimpleLobbyProps> = ({ onGameJoined }) => {
-  const [playerName, setPlayerName] = useState('');
-  const [gameId, setGameId] = useState('');
+  const [playerName, setPlayerName] = useState("");
+  const [gameId, setGameId] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState('Перевірка з\'єднання...');
+  const [connectionStatus, setConnectionStatus] = useState(
+    "Перевірка з'єднання...",
+  );
 
   // Перевірка з'єднання з сервером
   React.useEffect(() => {
     const checkConnection = async () => {
       try {
-        const response = await fetch('http://localhost:3001/health');
+        const response = await fetch(config.endpoints.health);
         if (response.ok) {
-          setConnectionStatus('Підключено');
+          setConnectionStatus("Підключено");
         } else {
-          setConnectionStatus('Сервер недоступний');
+          setConnectionStatus("Сервер недоступний");
         }
       } catch (error) {
-        setConnectionStatus('Сервер недоступний');
+        setConnectionStatus("Сервер недоступний");
       }
     };
 
@@ -39,10 +42,10 @@ const SimpleLobby: React.FC<SimpleLobbyProps> = ({ onGameJoined }) => {
 
     setIsCreating(true);
     try {
-      const response = await fetch('http://localhost:3001/api/games/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ hostId: `player-${Date.now()}` })
+      const response = await fetch(config.endpoints.createGame, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hostId: `player-${Date.now()}` }),
       });
 
       const data = await response.json();
@@ -50,7 +53,7 @@ const SimpleLobby: React.FC<SimpleLobbyProps> = ({ onGameJoined }) => {
         onGameJoined(data.game.id, data.game.hostId);
       }
     } catch (error) {
-      console.error('Error creating game:', error);
+      console.error("Error creating game:", error);
     } finally {
       setIsCreating(false);
     }
@@ -61,13 +64,13 @@ const SimpleLobby: React.FC<SimpleLobbyProps> = ({ onGameJoined }) => {
 
     setIsJoining(true);
     try {
-      const response = await fetch(`http://localhost:3001/api/games/${gameId}/join`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+      const response = await fetch(config.endpoints.joinGame(gameId), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           playerId: `player-${Date.now()}`,
-          playerName: playerName.trim()
-        })
+          playerName: playerName.trim(),
+        }),
       });
 
       const data = await response.json();
@@ -75,7 +78,7 @@ const SimpleLobby: React.FC<SimpleLobbyProps> = ({ onGameJoined }) => {
         onGameJoined(gameId, data.playerId);
       }
     } catch (error) {
-      console.error('Error joining game:', error);
+      console.error("Error joining game:", error);
     } finally {
       setIsJoining(false);
     }
@@ -86,7 +89,9 @@ const SimpleLobby: React.FC<SimpleLobbyProps> = ({ onGameJoined }) => {
       <div className="lobby-header">
         <h1 className="game-title">🎮 Cash Flow Ukraine</h1>
         <p className="game-subtitle">Навчайте фінансовій свободі через гру</p>
-        <div className={`connection-status ${connectionStatus === 'Підключено' ? 'connected' : 'disconnected'}`}>
+        <div
+          className={`connection-status ${connectionStatus === "Підключено" ? "connected" : "disconnected"}`}
+        >
           <span className="status-dot"></span>
           {connectionStatus}
         </div>
@@ -112,10 +117,14 @@ const SimpleLobby: React.FC<SimpleLobbyProps> = ({ onGameJoined }) => {
             <p>Станьте хостом та запрошуйте гравців</p>
             <button
               onClick={createGame}
-              disabled={!playerName.trim() || connectionStatus !== 'Підключено' || isCreating}
+              disabled={
+                !playerName.trim() ||
+                connectionStatus !== "Підключено" ||
+                isCreating
+              }
               className="btn btn-primary"
             >
-              {isCreating ? 'Створення...' : 'Створити гру'}
+              {isCreating ? "Створення..." : "Створити гру"}
             </button>
           </div>
 
@@ -132,10 +141,15 @@ const SimpleLobby: React.FC<SimpleLobbyProps> = ({ onGameJoined }) => {
             />
             <button
               onClick={joinGame}
-              disabled={!playerName.trim() || !gameId.trim() || connectionStatus !== 'Підключено' || isJoining}
+              disabled={
+                !playerName.trim() ||
+                !gameId.trim() ||
+                connectionStatus !== "Підключено" ||
+                isJoining
+              }
               className="btn btn-secondary"
             >
-              {isJoining ? 'Приєднання...' : 'Приєднатися'}
+              {isJoining ? "Приєднання..." : "Приєднатися"}
             </button>
           </div>
         </div>
@@ -145,16 +159,20 @@ const SimpleLobby: React.FC<SimpleLobbyProps> = ({ onGameJoined }) => {
         <h3>📋 Правила гри</h3>
         <div className="rules-content">
           <div className="rule">
-            <strong>🎯 Мета:</strong> Досягти фінансової свободи (пасивний дохід ≥ витрати)
+            <strong>🎯 Мета:</strong> Досягти фінансової свободи (пасивний дохід
+            ≥ витрати)
           </div>
           <div className="rule">
-            <strong>🎲 Як грати:</strong> Кидайте кубик, рухайтесь, інвестуйте в активи
+            <strong>🎲 Як грати:</strong> Кидайте кубик, рухайтесь, інвестуйте в
+            активи
           </div>
           <div className="rule">
-            <strong>💰 Шлях до перемоги:</strong> Купуйте нерухомість, бізнес, акції
+            <strong>💰 Шлях до перемоги:</strong> Купуйте нерухомість, бізнес,
+            акції
           </div>
           <div className="rule">
-            <strong>🏆 Перемога:</strong> Перейдіть на Fast Track та купіть свою мрію
+            <strong>🏆 Перемога:</strong> Перейдіть на Fast Track та купіть свою
+            мрію
           </div>
         </div>
       </div>
