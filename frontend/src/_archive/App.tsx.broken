@@ -1,0 +1,245 @@
+import React, { useState, useEffect } from 'react';
+import { socketService } from './services/socketService';
+import { SOCKET_EVENTS } from '../../shared/constants/game';
+import './App.css';
+
+function App() {
+  const [gameId, setGameId] = useState('');
+  const [playerName, setPlayerName] = useState('');
+  const [joinGameId, setJoinGameId] = useState('');
+  const [playerId, setPlayerId] = useState('');
+  const [connectionStatus, setConnectionStatus] = useState('Відключено');
+  const [gameJoined, setGameJoined] = useState(false);
+  const [gameData, setGameData] = useState<any>(null);
+
+  // Ініціалізація Socket.IO підключення
+  useEffect(() => {
+    const socket = socketService.connectToGame();
+    setConnectionStatus('Підключається...');
+
+    socket.on('connect', () => {
+      setConnectionStatus('Підключено');
+      console.log('Connected to game server');
+    });
+
+    socket.on('disconnect', () => {
+      setConnectionStatus('Відключено');
+      console.log('Disconnected from game server');
+    });
+
+    // Слухаємо події гри
+    socket.on(SOCKET_EVENTS.GAME_STATE, (game) => {
+      console.log('Game state updated:', game);
+      setGameData(game);
+    });
+
+    socket.on(SOCKET_EVENTS.PLAYER_JOINED, (data) => {
+      console.log('Player joined:', data);
+    });
+
+    socket.on(SOCKET_EVENTS.PLAYER_LEFT, (data) => {
+      console.log('Player left:', data);
+    });
+
+    return () => {
+      socketService.disconnectGame();
+    };
+  }, []);
+
+  // Генерація унікального ID гравця
+  useEffect(() => {
+    if (!playerId) {
+      setPlayerId('player-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9));
+    }
+  }, []);
+
+  const createGame = async () => {
+    try {
+      const response = await fetch('http://localhost:3001/api/games/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          hostId: playerId,
+          hostPlayerName: playerName || 'Test Player',
+          maxPlayers: 4
+        })
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setGameId(data.game.id);
+        // Автоматично приєднуємося до створеної гри
+        joinGameSocket(data.game.id);
+        alert(`Гра створена! ID: ${data.game.id}`);
+      } else {
+        alert('Помилка створення гри');
+      }
+    } catch (error) {
+      console.error('Error creating game:', error);
+      alert('Помилка мережі');
+    }
+  };
+
+  const joinGame = async () => {
+    if (!joinGameId.trim()) {
+      alert('Введіть ID гри');
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:3001/api/games/${joinGameId}/join`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          playerId: playerId,
+          playerName: playerName || 'Guest Player'
+        })
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setGameId(joinGameId);
+        joinGameSocket(joinGameId);
+        alert(`Приєднались до гри: ${joinGameId}`);
+      } else {
+        alert('Помилка приєднання до гри: ' + (data.error || 'Невідома помилка'));
+      }
+    } catch (error) {
+      console.error('Error joining game:', error);
+      alert('Помилка мережі');
+    }
+  };
+
+  const joinGameSocket = (gameIdToJoin: string) => {
+    if (socketService.isGameConnected) {
+      socketService.joinGame(gameIdToJoin, playerId, playerName || 'Player');
+      setGameJoined(true);
+    } else {
+      alert('Не підключено до сервера');
+    }
+  };
+
+  return (
+    <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
+      <h1>Cash Flow Ukraine</h1>
+      
+      <div style={{ marginBottom: '20px' }}>
+        <h2>Створити нову гру</h2>
+        <div style={{ marginBottom: '10px' }}>
+          <input
+            type="text"
+            placeholder="Ваше ім'я"
+            value={playerName}
+            onChange={(e) => setPlayerName(e.target.value)}
+            style={{ padding: '8px', marginRight: '10px', width: '200px' }}
+          />
+        </div>
+        <button 
+          onClick={createGame}
+          disabled={connectionStatus !== 'Підключено'}
+          style={{ 
+            padding: '10px 20px', 
+            backgroundColor: connectionStatus === 'Підключено' ? '#007bff' : '#6c757d', 
+            color: 'white', 
+            border: 'none', 
+            borderRadius: '4px',
+            cursor: connectionStatus === 'Підключено' ? 'pointer' : 'not-allowed'
+          }}
+        >
+          Створити гру
+        </button>
+      </div>
+
+      <div style={{ marginBottom: '20px' }}>
+        <h2>Приєднатися до гри</h2>
+        <div style={{ marginBottom: '10px' }}>
+          <input
+            type="text"
+            placeholder="ID гри"
+            value={joinGameId}
+            onChange={(e) => setJoinGameId(e.target.value)}
+            style={{ padding: '8px', marginRight: '10px', width: '200px' }}
+          />
+          <button 
+            onClick={joinGame}
+            disabled={connectionStatus !== 'Підключено'}
+            style={{ 
+              padding: '10px 20px', 
+              backgroundColor: connectionStatus === 'Підключено' ? '#28a745' : '#6c757d', 
+              color: 'white', 
+              border: 'none', 
+              borderRadius: '4px',
+              cursor: connectionStatus === 'Підключено' ? 'pointer' : 'not-allowed'
+            }}
+          >
+            Приєднатися
+          </button>
+        </div>
+      </div>
+          style={{ 
+            padding: '10px 20px', 
+            backgroundColor: '#007bff', 
+            color: 'white', 
+            border: 'none', 
+            borderRadius: '4px',
+            cursor: 'pointer'
+          }}
+        >
+          Створити гру
+        </button>
+      </div>
+
+      {gameId && (
+        <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
+          <h3>Гра створена!</h3>
+          <p><strong>ID гри:</strong> {gameId}</p>
+          <p>Поділіться цим ID з іншими гравцями для приєднання до гри.</p>
+        </div>
+      )}
+
+      <div style={{ marginTop: '30px' }}>
+        <h2>Статус</h2>
+        <p><strong>Ваш ID:</strong> {playerId}</p>
+        <p><strong>Підключення:</strong> 
+          <span style={{ 
+            color: connectionStatus === 'Підключено' ? 'green' : 
+                   connectionStatus === 'Підключається...' ? 'orange' : 'red',
+            marginLeft: '10px'
+          }}>
+            {connectionStatus}
+          </span>
+        </p>
+        {gameJoined && gameId && (
+          <p><strong>Поточна гра:</strong> {gameId}</p>
+        )}
+      </div>
+
+      {gameData && (
+        <div style={{ 
+          marginTop: '20px', 
+          padding: '15px', 
+          backgroundColor: '#f8f9fa', 
+          borderRadius: '4px',
+          border: '1px solid #dee2e6'
+        }}>
+          <h3>Дані гри</h3>
+          <pre style={{ 
+            backgroundColor: '#e9ecef', 
+            padding: '10px', 
+            borderRadius: '4px',
+            fontSize: '12px',
+            overflow: 'auto'
+          }}>
+            {JSON.stringify(gameData, null, 2)}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default App;

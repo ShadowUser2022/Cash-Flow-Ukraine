@@ -1,0 +1,170 @@
+/* EventCard.css */
+.event-card-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.event-card {
+  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+  border-radius: 16px;
+  border-top: 4px solid #FFD700;
+  padding: 24px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  animation: slideUp 0.4s ease-out;
+  border: 2px solid rgba(255, 215, 0, 0.3);
+}
+
+.event-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.event-card-icon {
+  font-size: 32px;
+  background: rgba(255, 215, 0, 0.2);
+  width: 60px;
+  height: 60px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid rgba(255, 215, 0, 0.4);
+}
+
+.event-card-title {
+  color: #FFD700;
+  font-size: 24px;
+  font-weight: bold;
+  margin: 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.event-card-content {
+  margin-bottom: 20px;
+}
+
+.event-card-description {
+  color: #ffffff;
+  font-size: 16px;
+  line-height: 1.5;
+  margin-bottom: 16px;
+  opacity: 0.9;
+}
+
+.event-card-action {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.action-text {
+  color: #ffffff;
+  font-size: 14px;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.action-value {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.event-card-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.event-card-btn {
+  flex: 1;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.event-card-btn.accept {
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  color: white;
+  border: 2px solid #4CAF50;
+}
+
+.event-card-btn.accept:hover {
+  background: linear-gradient(135deg, #45a049, #4CAF50);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+}
+
+.event-card-btn.decline {
+  background: linear-gradient(135deg, #F44336, #da190b);
+  color: white;
+  border: 2px solid #F44336;
+}
+
+.event-card-btn.decline:hover {
+  background: linear-gradient(135deg, #da190b, #F44336);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(244, 67, 54, 0.4);
+}
+
+/* Анімації */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Мобільна адаптація */
+@media (max-width: 768px) {
+  .event-card {
+    margin: 20px;
+    padding: 20px;
+  }
+  
+  .event-card-title {
+    font-size: 20px;
+  }
+  
+  .event-card-icon {
+    width: 50px;
+    height: 50px;
+    font-size: 24px;
+  }
+  
+  .event-card-btn {
+    padding: 10px 16px;
+    font-size: 14px;
+  }
+}

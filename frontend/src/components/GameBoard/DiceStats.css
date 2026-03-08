@@ -1,0 +1,169 @@
+/* DiceStats.css */
+.dice-stats-toggle {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #FFD700;
+  border: 1px solid #FFD700;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  z-index: 100;
+}
+
+.dice-stats {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+  border: 2px solid #FFD700;
+  border-radius: 12px;
+  padding: 20px;
+  min-width: 300px;
+  max-width: 400px;
+  z-index: 1000;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.dice-stats-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.dice-stats-header h3 {
+  color: #FFD700;
+  margin: 0;
+  font-size: 18px;
+}
+
+.dice-stats-header button {
+  background: none;
+  border: none;
+  color: #ffffff;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+}
+
+.stats-summary {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stat-label {
+  color: #ffffff;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.stat-value {
+  color: #FFD700;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.stats-distribution h4 {
+  color: #FFD700;
+  margin: 0 0 12px 0;
+  font-size: 14px;
+}
+
+.stat-bar {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+  gap: 8px;
+}
+
+.stat-bar-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 60px;
+}
+
+.dice-face {
+  font-size: 16px;
+}
+
+.stat-count {
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.stat-bar-track {
+  flex: 1;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.stat-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #FFD700, #FFA500);
+  transition: width 0.3s ease;
+}
+
+.stat-percentage {
+  color: #ffffff;
+  font-size: 12px;
+  min-width: 40px;
+  text-align: right;
+}
+
+.reset-stats-btn {
+  width: 100%;
+  background: linear-gradient(135deg, #F44336, #da190b);
+  color: white;
+  border: none;
+  padding: 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  margin-top: 12px;
+  transition: all 0.3s ease;
+}
+
+.reset-stats-btn:hover {
+  background: linear-gradient(135deg, #da190b, #F44336);
+  transform: translateY(-1px);
+}
+
+@media (max-width: 768px) {
+  .dice-stats {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    bottom: auto;
+    transform: none;
+    min-width: auto;
+    max-width: none;
+  }
+  
+  .dice-stats-toggle {
+    position: relative;
+    top: auto;
+    left: auto;
+    margin: 10px;
+  }
+}

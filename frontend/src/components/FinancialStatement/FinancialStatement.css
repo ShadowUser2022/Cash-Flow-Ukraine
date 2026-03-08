@@ -1,0 +1,331 @@
+/* Financial Statement - повний фінансовий звіт як в оригінальній грі */
+.financial-statement {
+  /* background: rgba(0, 0, 0, 0.7);
+  border: 2px solid #ffd700;
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+  backdrop-filter: blur(10px);
+  box-shadow: 
+    0 8px 32px rgba(255, 215, 0, 0.15),
+    inset 0 1px 0 rgba(255, 215, 0, 0.1); */
+}
+
+.financial-statement.compact {
+  /* padding: 1rem; */
+  font-size: 0.9rem;
+}
+
+/* Заголовок */
+.statement-header {
+  text-align: center;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid rgba(255, 215, 0, 0.3);
+  padding-bottom: 0.75rem;
+}
+
+.statement-header h4 {
+  margin: 0 0 0.25rem 0;
+  color: #ffd700;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.player-name {
+  color: #fff;
+  font-weight: 500;
+  font-size: 1rem;
+  display: block;
+}
+
+.profession {
+  color: #cbd5e1;
+  font-size: 0.8rem;
+  font-style: italic;
+}
+
+/* Секції */
+.statement-section {
+  margin-bottom: 1rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(255, 215, 0, 0.15);
+}
+
+.statement-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.section-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ffd700;
+  margin: 0 0 0.75rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.subsection-title {
+  font-size: 0.8rem;
+  color: #e2e8f0;
+  margin: 0.5rem 0 0.25rem 0;
+  font-weight: 500;
+}
+
+/* Рядки фінансів */
+.finance-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.4rem;
+  padding: 0.25rem 0;
+}
+
+.finance-row.asset-row,
+.finance-row.liability-row {
+  margin-left: 1.5rem;
+  font-size: 0.85rem;
+  position: relative;
+  padding-left: 0.75rem;
+}
+
+.finance-row.asset-row::before,
+.finance-row.liability-row::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 3px;
+  height: 60%;
+  background: linear-gradient(to bottom, #ffd700, rgba(255, 215, 0, 0.3));
+  transform: translateY(-50%);
+  border-radius: 1px;
+}
+
+.finance-row .label {
+  color: #e2e8f0;
+  font-size: 0.85rem;
+}
+
+.finance-row .value {
+  font-weight: 600;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+}
+
+.value.positive {
+  color: #10b981;
+}
+
+.value.negative {
+  color: #ef4444;
+}
+
+.value.cash {
+  color: #ffd700;
+}
+
+/* Підсумкові рядки */
+.total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.75rem;
+  padding: 0.5rem 0;
+  border-top: 2px solid rgba(255, 215, 0, 0.4);
+  background: linear-gradient(to right, rgba(255, 215, 0, 0.05), transparent);
+  border-radius: 8px;
+  padding: 10px	;
+}
+
+.total-row .label {
+  color: #ffd700;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.total-row .value.total {
+  font-size: 1.1rem;
+  font-weight: 800;
+  text-shadow: 0 0 8px rgba(255, 215, 0, 0.3);
+}
+
+/* Розрахунок Cash Flow */
+/* .cashflow-calculation {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  padding: 0.75rem;
+  border: 1px solid rgba(255, 215, 0, 0.2);
+} */
+
+.calculation-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.calculation-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #ffd700, transparent);
+  margin: 0.5rem 0;
+}
+
+.total-cashflow {
+  background: rgba(255, 215, 0, 0.1);
+  padding: 0.5rem;
+  border-radius: 4px;
+  margin: 0.5rem 0 0 0;
+}
+
+/* Готівка */
+.cash-section {
+  background: rgba(255, 215, 0, 0.1);
+  border-color: rgba(255, 215, 0, 0.3);
+  border-radius: 10px;
+}
+
+.cash-row {
+  margin: 0;
+  font-size: 1rem;
+}
+
+/* Швидка доріжка */
+.fasttrack-section {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.fasttrack-condition {
+  text-align: center;
+}
+
+.condition-text {
+  color: #cbd5e1;
+  font-size: 0.8rem;
+  margin-bottom: 0.5rem;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+  border-radius: 6px;
+  transition: width 0.8s ease;
+  position: relative;
+}
+
+.progress-numbers {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: #cbd5e1;
+  font-family: 'Courier New', monospace;
+}
+
+/* Поради */
+.advice-section {
+  background: rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+.advice-text {
+  color: #e2e8f0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  margin: 0;
+  font-style: italic;
+}
+
+/* Компактний режим */
+.financial-statement.compact .statement-section {
+  padding: 0.5rem;
+  margin-bottom: 0.5rem;
+  border-radius: 10px;
+}
+
+.financial-statement.compact .finance-row {
+  margin-bottom: 0.15rem;
+}
+
+.financial-statement.compact .section-title {
+  font-size: 0.8rem;
+}
+
+/* Мобільна адаптація */
+@media (max-width: 768px) {
+  .financial-statement {
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+  
+  .finance-row {
+    font-size: 0.8rem;
+  }
+  
+  .finance-row .value {
+    font-size: 0.85rem;
+  }
+  
+  .progress-bar {
+    height: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .financial-statement {
+    padding: 0.5rem;
+  }
+  
+  .statement-header h4 {
+    font-size: 1rem;
+  }
+  
+  .finance-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+  
+  .finance-row .value {
+    align-self: flex-end;
+    font-size: 0.9rem;
+  }
+}
+
+/* Анімації */
+.value {
+  transition: color 0.3s ease;
+}
+
+.progress-fill {
+  animation: progressGrow 1s ease-out;
+}
+
+@keyframes progressGrow {
+  from {
+    width: 0;
+  }
+}
+
+/* Hover ефекти */
+@media (hover: hover) {
+  .finance-row:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+    padding: 0.25rem 0.5rem;
+    margin: 0.25rem -0.5rem;
+  }
+}

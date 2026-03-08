@@ -1,0 +1,1409 @@
+/* --- Анімація для бокових панелей --- */
+.sidebar-animated {
+	position: fixed;
+	top: 0;
+	bottom: 0;
+	width: 340px;
+	max-width: 90vw;
+	background: rgba(20, 20, 30, 0.98);
+	box-shadow: 0 8px 32px rgba(255,215,0,0.10);
+	z-index: 1200;
+	transition: transform 0.35s cubic-bezier(0.4,0,0.2,1), opacity 0.25s;
+	opacity: 1;
+	overflow-y: auto;
+	border-radius: 24px;
+}
+.left-sidebar.sidebar-animated {
+	left: 0;
+	transform: translateX(-100%);
+}
+.left-sidebar.sidebar-animated.open {
+	transform: translateX(0);
+	border-top-right-radius: 24px;
+	border-bottom-right-radius: 24px;
+	box-shadow: 4px 0 32px rgba(255, 215, 0, 0.08);
+}
+.right-sidebar.sidebar-animated {
+	right: 0;
+	transform: translateX(100%);
+}
+.right-sidebar.sidebar-animated.open {
+	transform: translateX(0);
+	border-top-left-radius: 24px;
+	border-bottom-left-radius: 24px;
+	box-shadow: -4px 0 32px rgba(255, 215, 0, 0.08);
+}
+.sidebar-toggle {
+	position: fixed;
+	top: 60px;
+	width: 44px;
+	height: 44px;
+	z-index: 2200;
+	background: rgba(20,20,30,0.98);
+	color: #FFD700;
+	border: 2px solid #FFD700;
+	border-radius: 50%;
+	font-size: 1.7rem;
+	cursor: pointer;
+	box-shadow: 0 4px 16px rgba(255,215,0,0.12);
+	transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+.sidebar-toggle.left {
+	left: 12px;
+}
+.sidebar-toggle.right {
+	right: 12px;
+}
+.sidebar-toggle:hover, .sidebar-toggle.active {
+	background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+	color: #181818;
+	box-shadow: 0 8px 32px rgba(255,215,0,0.18);
+}
+/* Tooltip для стрілок */
+.sidebar-toggle[title]:hover:after {
+	content: attr(title);
+	position: absolute;
+	left: 50%;
+	top: 110%;
+	transform: translateX(-50%);
+	background: #181818;
+	color: #FFD700;
+	padding: 6px 16px;
+	border-radius: 8px;
+	font-size: 0.98rem;
+	white-space: nowrap;
+	box-shadow: 0 2px 8px rgba(255,215,0,0.10);
+	z-index: 3000;
+	pointer-events: none;
+}
+@media (max-width: 900px) {
+	.sidebar-animated {
+		width: 90vw;
+		min-width: 0;
+	}
+}
+/* Плаваючі кнопки для відкриття чату/відео */
+.floating-btn {
+	position: fixed;
+	z-index: 3500;
+	width: 54px;
+	height: 54px;
+	border-radius: 50%;
+	background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+	color: #181818;
+	font-size: 2rem;
+	border: 2px solid #fff;
+	box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	transition: box-shadow 0.2s, background 0.2s;
+}
+.floating-btn:hover {
+	box-shadow: 0 8px 32px rgba(255,215,0,0.25);
+	background: linear-gradient(135deg, #FFA500 0%, #FFD700 100%);
+}
+.floating-btn-chat {
+	left: 24px;
+	bottom: 24px;
+}
+.floating-btn-video {
+	right: 24px;
+	bottom: 24px;
+}
+@media (max-width: 600px) {
+	.floating-btn-chat {
+		left: 4vw;
+		bottom: 4vw;
+	}
+	.floating-btn-video {
+		right: 4vw;
+		bottom: 4vw;
+	}
+}
+/* === FULLSCREEN GAME INTERFACE WITH SIDEBARS === */
+
+/* Основний контейнер для fullscreen */
+.game-interface.fullscreen-board {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100vw;
+	height: 100vh;
+	background: var(--gradient-dark, linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%));
+	overflow: hidden;
+	z-index: var(--z-low, 100);
+	padding-top: 56px; /* для TopInfoBar */
+}
+
+/* Контейнер для дошки - тепер більша */
+
+/* === TOP GAME BAR - ULTRA COMPACT === */
+.top-game-bar {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 50px;
+	/* Зменшено з 80px до 50px */
+	background: rgba(10, 10, 10, 0.95);
+	backdrop-filter: blur(20px);
+	border-bottom: 1px solid rgba(147, 197, 253, 0.2);
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0 1rem;
+	/* Зменшено padding */
+	z-index: 1600;
+	box-shadow: 0 2px 15px rgba(0, 0, 0, 0.5);
+}
+
+.game-info-compact {
+	display: flex;
+	align-items: center;
+	gap: 1.5rem;
+	/* Зменшено gap */
+	flex: 1;
+}
+
+.game-title {
+	font-size: 1.1rem;
+	/* Зменшено шрифт */
+	font-weight: bold;
+	color: #93c5fd;
+	display: flex;
+	align-items: center;
+	gap: 0.3rem;
+}
+
+.game-meta-compact {
+	display: flex;
+	gap: 1rem;
+	/* Зменшено gap */
+	font-size: 0.8rem;
+	/* Зменшено шрифт */
+	color: rgba(147, 197, 253, 0.8);
+	flex-wrap: wrap;
+}
+
+/* Remove duplicate dice styles - all dice styles are now in GameBoard.css */
+
+.turn-info-compact {
+	display: flex;
+	align-items: center;
+	gap: 1rem;
+	/* Зменшено gap */
+	flex-direction: row;
+	/* Змінено на row для компактності */
+	align-items: center;
+}
+
+.turn-status-compact {
+	border-radius: 6px;
+	padding: 4px 8px;
+	/* Зменшено padding */
+	font-size: 0.8rem;
+	/* Зменшено шрифт */
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	border: 2px solid transparent;
+}
+
+.turn-status-compact.my-turn {
+	background: var(--success-bg);
+	border-color: var(--success-border);
+	color: var(--success-color);
+}
+
+.turn-status-compact.waiting {
+	background: var(--warning-bg);
+	border-color: var(--warning-border);
+	color: var(--warning-color);
+}
+
+/* Згортаємий тестовий режим */
+.dev-info-wrapper {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.dev-toggle-btn {
+	background: rgba(59, 130, 246, 0.1);
+	border: 1px solid rgba(59, 130, 246, 0.3);
+	border-radius: 6px;
+	padding: 2px 6px;
+	font-size: 0.7rem;
+	color: rgba(147, 197, 253, 0.9);
+	cursor: pointer;
+	transition: all 0.2s ease;
+	user-select: none;
+}
+
+.dev-toggle-btn:hover {
+	background: rgba(59, 130, 246, 0.2);
+	border-color: rgba(59, 130, 246, 0.5);
+	transform: scale(1.05);
+}
+
+.dev-info-compact {
+	display: flex;
+	gap: 1rem;
+	font-size: 0.75rem;
+	color: var(--text-muted);
+	opacity: 0.8;
+}
+
+/* === DISCRETE SIDEBAR TOGGLE BUTTONS === */
+.sidebar-toggle {
+	position: fixed;
+	top: 50%;
+	transform: translateY(-50%);
+	width: 32px;
+	/* Зменшено */
+	height: 60px;
+	/* Зменшено */
+	background: rgba(10, 10, 10, 0.8);
+	/* Менш помітний */
+	backdrop-filter: blur(15px);
+	border: 1px solid rgba(147, 197, 253, 0.2);
+	/* Менш яскраво */
+	cursor: pointer;
+	z-index: 1500;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 1rem;
+	/* Зменшено */
+	color: rgba(147, 197, 253, 0.7);
+	/* Менш яскраво */
+	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+	user-select: none;
+	-webkit-user-select: none;
+	opacity: 0.6;
+	/* Менш помітні за замовчуванням */
+}
+
+.sidebar-toggle.left {
+	left: 0;
+	border-radius: 0 12px 12px 0;
+	border-left: none;
+}
+
+.sidebar-toggle.right {
+	right: 0;
+	border-radius: 12px 0 0 12px;
+	border-right: none;
+}
+
+/* Left toggle when sidebar is open */
+.sidebar-toggle.left.active {
+	left: 400px;
+	background: var(--bg-tertiary, rgba(40, 40, 40, 0.95));
+	border-color: var(--gold-primary, rgba(255, 215, 0, 0.8));
+}
+
+/* Right toggle when sidebar is open */
+.sidebar-toggle.right.active {
+	right: 400px;
+	background: var(--bg-tertiary, rgba(40, 40, 40, 0.95));
+	border-color: var(--gold-primary, rgba(255, 215, 0, 0.8));
+}
+
+.sidebar-toggle:hover {
+	opacity: 1;
+	/* Повна видимість при hover */
+	background: rgba(59, 130, 246, 0.2);
+	border-color: rgba(147, 197, 253, 0.4);
+	color: #93c5fd;
+	transform: translateY(-50%) scale(1.05);
+	box-shadow: 0 4px 15px rgba(59, 130, 246, 0.2);
+}
+
+/* Забезпечуємо видимість стрілочок */
+.sidebar-toggle::before {
+	content: attr(data-arrow);
+	display: block;
+	font-size: inherit;
+	line-height: 1;
+	pointer-events: none;
+}
+
+/* Fallback для browser без підтримки attr() */
+.sidebar-toggle:not([data-arrow])::before {
+	content: '◀';
+}
+
+.sidebar-toggle.left:not([data-arrow])::before {
+	content: '▶';
+}
+
+.sidebar-toggle.left.active:not([data-arrow])::before {
+	content: '◀';
+}
+
+.sidebar-toggle.right:not([data-arrow])::before {
+	content: '◀';
+}
+
+.sidebar-toggle.right.active:not([data-arrow])::before {
+	content: '▶';
+}
+
+/* === LEFT SIDEBAR (Interaction) === */
+.left-sidebar {
+	position: fixed !important;
+	top: 80px !important;
+	left: -400px !important;
+	width: 400px !important;
+	height: calc(100vh - 80px) !important;
+	background: var(--bg-accent, rgba(30, 30, 30, 0.95)) !important;
+	backdrop-filter: blur(20px) !important;
+	border-right: 1px solid var(--border-gold, rgba(255, 215, 0, 0.3)) !important;
+	transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease !important;
+	z-index: var(--z-sidebar, 1300) !important;
+	overflow-y: auto !important;
+	box-shadow: var(--shadow-dark, 4px 0 25px rgba(0, 0, 0, 0.5)) !important;
+	opacity: 0 !important;
+}
+
+.left-sidebar.open {
+	left: 0 !important;
+	opacity: 1 !important;
+}
+
+.sidebar-header {
+	padding: 1.5rem;
+	border-bottom: 1px solid rgba(255, 215, 0, 0.2);
+	background: rgba(255, 215, 0, 0.05);
+}
+
+.sidebar-title {
+	font-size: 1.3rem;
+	font-weight: bold;
+	color: var(--text-primary, #fff);
+	margin: 0;
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.sidebar-content {
+	padding: 1.5rem;
+}
+
+.sidebar-section {
+	margin-bottom: 2rem;
+}
+
+.section-title {
+	font-size: 1.1rem;
+	font-weight: bold;
+	color: #fff;
+	margin-bottom: 1rem;
+	padding-bottom: 0.5rem;
+	border-bottom: 1px solid rgba(255, 215, 0, 0.3);
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+/* === RIGHT SIDEBAR (Game Info) === */
+.right-sidebar {
+	position: fixed !important;
+	top: 80px !important;
+	right: -400px !important;
+	width: 400px !important;
+	height: calc(100vh - 80px) !important;
+	background: rgba(30, 30, 30, 0.95) !important;
+	backdrop-filter: blur(20px) !important;
+	border-left: 1px solid var(--border-gold, rgba(255, 215, 0, 0.3)) !important;
+	transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease !important;
+	z-index: var(--z-sidebar, 1000) !important;
+	overflow-y: auto !important;
+	box-shadow: -4px 0 25px rgba(0, 0, 0, 0.5) !important;
+	opacity: 0 !important;
+}
+
+.right-sidebar.open {
+	right: 0 !important;
+	opacity: 1 !important;
+}
+
+/* === SIDEBAR CONTENT SECTIONS === */
+.interaction-controls {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+}
+
+.turn-controls-full {
+	background: var(--info-bg);
+	border: 1px solid var(--border-gold, rgba(255, 215, 0, 0.3));
+	border-radius: 12px;
+	padding: 1.5rem;
+}
+
+.turn-indicator-full {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	margin-bottom: 1rem;
+	font-weight: bold;
+	color: #FFD700;
+	font-size: 1.1rem;
+}
+
+.turn-icon {
+	font-size: 1.3rem;
+	animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+
+	0%,
+	100% {
+		opacity: 1;
+	}
+
+	50% {
+		opacity: 0.5;
+	}
+}
+
+.action-buttons {
+	display: flex;
+	flex-direction: column;
+	gap: 0.8rem;
+}
+
+.action-btn {
+	padding: 0.8rem 1rem;
+	border: none;
+	border-radius: 8px;
+	font-weight: bold;
+	cursor: pointer;
+	transition: all 0.3s ease;
+	font-size: 0.9rem;
+}
+
+.action-btn.primary {
+	background: linear-gradient(135deg, #FFD700, #FFA500);
+	color: #000;
+}
+
+.action-btn.secondary {
+	background: var(--info-bg);
+	border: 1px solid var(--info-border);
+	color: var(--gold-primary);
+}
+
+.action-btn.special {
+	background: linear-gradient(135deg, var(--warning-color), var(--error-color));
+	color: var(--primary-text);
+}
+
+.action-btn:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.action-btn:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+	transform: none;
+}
+
+/* Communication Stack */
+.communication-section {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+}
+
+/* Exit Button */
+.exit-btn {
+	margin-top: 1rem;
+	width: 100%;
+	background: var(--error-bg);
+	border-color: var(--error-border);
+	color: var(--error-color);
+	padding: 0.8rem 1rem;
+	border-radius: 8px;
+	font-weight: bold;
+	cursor: pointer;
+	transition: all 0.3s ease;
+}
+
+.exit-btn:hover {
+	background: var(--error-border);
+	border-color: var(--error-color);
+	color: var(--text-primary);
+	transform: translateY(-2px);
+}
+
+/* Dev Mode Indicators */
+.dev-badge {
+	font-size: 1.1rem;
+}
+
+.dev-indicator {
+	background: var(--error-color);
+	color: var(--text-primary);
+	padding: 0.2rem 0.5rem;
+	border-radius: 4px;
+	font-size: 0.7rem;
+	font-weight: bold;
+}
+
+/* === FLOATING PANELS === */
+
+.floating-panel {
+	position: absolute;
+	background: rgba(30, 30, 30, 0.95);
+	backdrop-filter: blur(20px);
+	border-radius: 12px;
+	padding: 1rem;
+	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+	border: 1px solid rgba(255, 215, 0, 0.3);
+	z-index: 1000;
+	max-width: 300px;
+	max-height: 80vh;
+	overflow-y: auto;
+	transition: all 0.3s ease;
+}
+
+.floating-panel:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+/* Позиціонування панелей */
+.floating-panel.top-left {
+	top: 1rem;
+	left: 1rem;
+	min-width: 280px;
+}
+
+.floating-panel.top-right {
+	top: 1rem;
+	right: 1rem;
+	min-width: 250px;
+}
+
+.floating-panel.right-side {
+	top: 50%;
+	right: 1rem;
+	transform: translateY(-50%);
+	min-width: 280px;
+	max-height: 60vh;
+}
+
+.floating-panel.bottom-left {
+	bottom: 1rem;
+	left: 1rem;
+	min-width: 250px;
+	max-width: 350px;
+}
+
+.floating-panel.bottom-right {
+	bottom: 1rem;
+	right: 1rem;
+	min-width: 300px;
+	max-height: 40vh;
+}
+
+/* === GAME INFO STYLES === */
+
+.game-info h2 {
+	margin: 0 0 1rem 0;
+	color: #2c3e50;
+	font-size: 1.4rem;
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.dev-badge {
+	font-size: 1.2rem;
+}
+
+.dev-indicator {
+	background: #e74c3c;
+	color: white;
+	padding: 0.2rem 0.5rem;
+	border-radius: 4px;
+	font-size: 0.7rem;
+	font-weight: bold;
+}
+
+.game-meta {
+	display: flex;
+	gap: 1rem;
+	font-size: 0.9rem;
+	color: #5a6c7d;
+	margin-bottom: 1rem;
+}
+
+/* === TURN CONTROLS === */
+
+.my-turn-controls {
+	background: rgba(46, 204, 113, 0.1);
+	border: 2px solid rgba(46, 204, 113, 0.3);
+	border-radius: 8px;
+	padding: 1rem;
+	margin: 1rem 0;
+}
+
+.turn-indicator {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	margin-bottom: 1rem;
+	font-weight: bold;
+	color: #27ae60;
+}
+
+.turn-icon {
+	font-size: 1.2rem;
+	animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+
+	0%,
+	100% {
+		opacity: 1;
+	}
+
+	50% {
+		opacity: 0.5;
+	}
+}
+
+/* Remove duplicate dice styles - all dice styles are now in GameBoard.css */
+
+.fast-track-btn {
+	background: linear-gradient(135deg, #d35400, #a04000);
+	border: none;
+	color: white;
+	padding: 0.7rem 1rem;
+	border-radius: 6px;
+	font-weight: bold;
+	margin-top: 0.5rem;
+	width: 100%;
+}
+
+/* Remove duplicate dice styles - all dice styles are now in GameBoard.css */
+
+/* === TURN SUMMARY === */
+.turn-summary h4 {
+	margin: 0 0 1rem 0;
+	color: #2c3e50;
+	border-bottom: 2px solid #ecf0f1;
+	padding-bottom: 0.5rem;
+}
+
+.turn-details p {
+	margin: 0.5rem 0;
+	font-size: 0.9rem;
+}
+
+.turn-action {
+	background: #f8f9fa;
+	border-radius: 4px;
+	padding: 0.5rem;
+	margin: 0.5rem 0;
+	border-left: 3px solid #3498db;
+}
+
+.action-type {
+	font-weight: bold;
+	color: #2c3e50;
+	margin-right: 0.5rem;
+}
+
+.action-result {
+	color: #5a6c7d;
+}
+
+/* === FINANCIAL DASHBOARD === */
+
+.financial-dashboard {
+	background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+	border-radius: 12px;
+	padding: 1rem;
+	margin-bottom: 1rem;
+}
+
+.cash-flow-meter {
+	margin-bottom: 1rem;
+}
+
+.cash-flow-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 0.5rem;
+}
+
+.cash-flow-header .label {
+	font-weight: bold;
+	color: #2c3e50;
+}
+
+.cash-flow-header .value {
+	font-weight: bold;
+	font-size: 1.1rem;
+	color: #27ae60;
+}
+
+.progress-bar {
+	width: 100%;
+	height: 8px;
+	background: #ecf0f1;
+	border-radius: 4px;
+	overflow: hidden;
+}
+
+.progress-fill {
+	height: 100%;
+	background: linear-gradient(90deg, #27ae60, #2ecc71);
+	transition: width 0.3s ease;
+}
+
+.financial-stats {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+.stat-item {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 0.5rem;
+	background: rgba(255, 215, 0, 0.1);
+	border-radius: 6px;
+	font-size: 0.9rem;
+}
+
+.stat-label {
+	font-weight: 500;
+	color: #34495e;
+}
+
+.stat-value {
+	font-weight: bold;
+	color: #2c3e50;
+}
+
+.stat-value.income {
+	color: #27ae60;
+}
+
+.stat-value.expense {
+	color: #e74c3c;
+}
+
+/* === QUICK ACTIONS === */
+
+.quick-actions-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 0.5rem;
+	margin-bottom: 1rem;
+}
+
+.quick-action-btn {
+	background: linear-gradient(135deg, #3498db, #2980b9);
+	border: none;
+	color: white;
+	padding: 0.7rem 0.5rem;
+	border-radius: 8px;
+	font-weight: 500;
+	font-size: 0.8rem;
+	cursor: pointer;
+	transition: all 0.3s ease;
+	text-align: center;
+}
+
+.quick-action-btn:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);
+}
+
+.quick-action-btn:active {
+	transform: translateY(0);
+}
+
+/* === STRATEGY TIPS === */
+
+.strategy-tips {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+.tip {
+	padding: 0.7rem;
+	border-radius: 8px;
+	font-size: 0.85rem;
+	font-weight: 500;
+	line-height: 1.4;
+}
+
+.tip.warning {
+	background: rgba(239, 68, 68, 0.15);
+	border: 1px solid rgba(239, 68, 68, 0.3);
+	color: #fca5a5;
+}
+
+.tip.info {
+	background: rgba(59, 130, 246, 0.15);
+	border: 1px solid rgba(59, 130, 246, 0.3);
+	color: #93c5fd;
+}
+
+.tip.success {
+	background: rgba(34, 197, 94, 0.15);
+	border: 1px solid rgba(34, 197, 94, 0.3);
+	color: #86efac;
+}
+
+/* === COMPACT TURN SUMMARY === */
+
+.sidebar-section.compact {
+	margin-bottom: 0.5rem;
+}
+
+.turn-summary-compact {
+	background: var(--info-bg);
+	border-radius: 6px;
+	padding: 0.5rem;
+	font-size: 0.8rem;
+	color: var(--text-primary);
+}
+
+.turn-summary-compact p {
+	margin: 0;
+	font-weight: 500;
+}
+
+/* === RESPONSIVE === */
+
+@media (max-width: 1400px) {
+
+	.left-sidebar,
+	.right-sidebar {
+		width: 350px;
+	}
+
+	.left-sidebar {
+		left: -350px;
+	}
+
+	.right-sidebar {
+		right: -350px;
+	}
+}
+
+@media (max-width: 1200px) {
+
+	.left-sidebar,
+	.right-sidebar {
+		width: 300px;
+	}
+
+	.left-sidebar {
+		left: -300px;
+	}
+
+	.right-sidebar {
+		right: -300px;
+	}
+
+	.top-game-bar {
+		padding: 0 1rem;
+	}
+
+	.game-info-compact {
+		gap: 1rem;
+	}
+
+	.quick-actions-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.financial-stats {
+		gap: 0.3rem;
+	}
+
+	.stat-item {
+		padding: 0.4rem;
+		font-size: 0.85rem;
+	}
+}
+
+@media (max-width: 768px) {
+
+	.left-sidebar,
+	.right-sidebar {
+		width: 85vw;
+		max-width: 320px;
+		top: 60px;
+		height: calc(100vh - 60px);
+	}
+
+	.left-sidebar {
+		left: -85vw;
+	}
+
+	.right-sidebar {
+		right: -85vw;
+	}
+
+	.left-sidebar.open {
+		left: 0;
+	}
+
+	.right-sidebar.open {
+		right: 0;
+	}
+
+	.top-game-bar {
+		height: 60px;
+		padding: 0 0.5rem;
+	}
+
+	.board-container {
+		top: 60px;
+		height: calc(100vh - 60px);
+	}
+
+	.game-title {
+		font-size: 1rem;
+	}
+
+	.sidebar-content {
+		padding: 1rem;
+	}
+
+	.financial-dashboard {
+		padding: 0.7rem;
+	}
+
+	.quick-action-btn {
+		padding: 0.5rem;
+		font-size: 0.75rem;
+	}
+
+	.tip {
+		padding: 0.5rem;
+		font-size: 0.8rem;
+	}
+}
+
+/* === MOBILE RESPONSIVE FOR TOGGLE BUTTONS === */
+@media (max-width: 768px) {
+	.sidebar-toggle {
+		width: 45px;
+		height: 70px;
+		font-size: 1.2rem;
+	}
+
+	/* On mobile, when sidebar is open, move toggle less */
+	.sidebar-toggle.left.active {
+		left: 350px;
+	}
+
+	.sidebar-toggle.right.active {
+		right: 350px;
+	}
+
+	/* Adjust sidebar width on mobile */
+	.left-sidebar,
+	.right-sidebar {
+		width: 350px !important;
+	}
+}
+
+@media (max-width: 480px) {
+	.sidebar-toggle {
+		width: 40px;
+		height: 60px;
+		font-size: 1rem;
+	}
+
+	.sidebar-toggle.left.active {
+		left: 300px;
+	}
+
+	.sidebar-toggle.right.active {
+		right: 300px;
+	}
+
+	.left-sidebar,
+	.right-sidebar {
+		width: 300px !important;
+	}
+}
+
+/* === BOARD CONTAINER - MAXIMUM SPACE === */
+.board-container {
+	position: fixed;
+	top: 50px;
+	/* Під компактним top bar */
+	left: 0;
+	width: 100vw;
+	height: calc(100vh - 50px);
+	/* Займає весь екран мінус top bar */
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 1000;
+	overflow: hidden;
+}
+
+/* === END SIDEBAR STYLES === */
+
+/* === OPTIMIZED RIGHT SIDEBAR STYLES === */
+
+/* Game Status Compact */
+.game-status-compact {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.status-item {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 6px 12px;
+	background: rgba(255, 255, 255, 0.05);
+	border-radius: 6px;
+	border: 1px solid rgba(255, 215, 0, 0.1);
+}
+
+.status-label {
+	font-size: 0.8rem;
+	color: rgba(255, 255, 255, 0.7);
+	font-weight: 500;
+}
+
+.status-value {
+	font-weight: 600;
+	color: var(--gold-primary);
+	font-size: 0.85rem;
+}
+
+.status-value.current-player {
+	color: #4ade80;
+	font-weight: 700;
+}
+
+/* Cash Flow Compact */
+.cash-flow-compact {
+	background: rgba(0, 0, 0, 0.3);
+	border-radius: 12px;
+	padding: 16px;
+	border: 1px solid rgba(255, 215, 0, 0.2);
+}
+
+.cash-flow-value {
+	margin-bottom: 12px;
+	text-align: center;
+}
+
+.cf-amount {
+	font-size: 1.25rem;
+	font-weight: 700;
+	font-family: 'Courier New', monospace;
+}
+
+.cf-amount.positive {
+	color: #22c55e;
+}
+
+.cf-amount.negative {
+	color: #ef4444;
+}
+
+.cf-progress {
+	height: 6px;
+	background: rgba(255, 255, 255, 0.1);
+	border-radius: 3px;
+	overflow: hidden;
+}
+
+.cf-bar {
+	height: 100%;
+	border-radius: 3px;
+	transition: width 0.3s ease;
+}
+
+/* Players Compact */
+.players-compact {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.player-item {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 8px 12px;
+	background: rgba(255, 255, 255, 0.05);
+	border-radius: 6px;
+	border: 1px solid rgba(255, 215, 0, 0.1);
+	transition: all 0.3s ease;
+}
+
+.player-item.current {
+	border-color: var(--gold-primary);
+	background: rgba(255, 215, 0, 0.1);
+	box-shadow: 0 0 10px rgba(255, 215, 0, 0.2);
+}
+
+.player-name {
+	font-size: 0.85rem;
+	font-weight: 600;
+	color: #ffffff;
+}
+
+.player-status {
+	font-size: 1.1rem;
+}
+
+/* Quick Actions Grid */
+.quick-actions-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 8px;
+}
+
+.quick-action-btn {
+	padding: 10px 8px;
+	background: rgba(255, 215, 0, 0.1);
+	border: 1px solid rgba(255, 215, 0, 0.3);
+	border-radius: 8px;
+	color: #ffffff;
+	font-size: 0.8rem;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 0.3s ease;
+	text-align: center;
+}
+
+.quick-action-btn:hover {
+	background: rgba(255, 215, 0, 0.2);
+	border-color: rgba(255, 215, 0, 0.5);
+	transform: translateY(-1px);
+}
+
+.quick-action-btn.special {
+	grid-column: 1 / -1;
+	background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 140, 0, 0.2));
+	border-color: var(--gold-primary);
+	font-weight: 600;
+}
+
+.quick-action-btn.special:hover {
+	background: linear-gradient(135deg, rgba(255, 215, 0, 0.3), rgba(255, 140, 0, 0.3));
+	box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+}
+
+/* Strategy Tips */
+.strategy-tips {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.tip {
+	padding: 8px 12px;
+	border-radius: 6px;
+	font-size: 0.8rem;
+	font-weight: 500;
+	line-height: 1.4;
+}
+
+.tip.warning {
+	background: rgba(239, 68, 68, 0.15);
+	border: 1px solid rgba(239, 68, 68, 0.3);
+	color: #fca5a5;
+}
+
+.tip.info {
+	background: rgba(59, 130, 246, 0.15);
+	border: 1px solid rgba(59, 130, 246, 0.3);
+	color: #93c5fd;
+}
+
+.tip.success {
+	background: rgba(34, 197, 94, 0.15);
+	border: 1px solid rgba(34, 197, 94, 0.3);
+	color: #86efac;
+}
+
+/* Dice Action Container в правій панелі */
+.dice-action-container {
+	grid-column: 1 / -1;
+	display: flex;
+	justify-content: center;
+	padding: 16px 8px;
+	background: rgba(255, 215, 0, 0.05);
+	border-radius: 12px;
+	border: 1px solid rgba(255, 215, 0, 0.2);
+	margin-bottom: 8px;
+}
+
+.dice-action-container .dice-roller {
+	transform: scale(0.8);
+}
+
+/* === END OPTIMIZED SIDEBAR STYLES === */
+
+/* === CHAT AND VIDEO OVERLAY STYLES === */
+.chat-overlay {
+	position: fixed;
+	bottom: 20px;
+	right: 20px;
+	width: 350px;
+	max-height: 400px;
+	z-index: 1500;
+	transition: all 0.3s ease;
+}
+
+.video-chat-overlay {
+	position: fixed;
+	bottom: 20px;
+	left: 20px;
+	width: 300px;
+	max-height: 350px;
+	z-index: 1500;
+	transition: all 0.3s ease;
+}
+
+/* Responsive overlay positioning */
+@media (max-width: 1024px) {
+	.chat-overlay {
+		right: 10px;
+		width: 300px;
+		bottom: 80px; /* Account for mobile navigation */
+	}
+	
+	.video-chat-overlay {
+		left: 10px;
+		width: 280px;
+		bottom: 80px;
+	}
+}
+
+@media (max-width: 768px) {
+	.chat-overlay {
+		right: 5px;
+		width: 280px;
+		max-height: 300px;
+	}
+	
+	.video-chat-overlay {
+		left: 5px;
+		width: 250px;
+		max-height: 280px;
+	}
+}
+
+/* === FINANCIAL SUMMARY IN HEADER === */
+.financial-summary-header {
+	display: flex;
+	align-items: center;
+	gap: 1.5rem;
+	background: rgba(0, 0, 0, 0.3);
+	backdrop-filter: blur(8px);
+	border-radius: 12px;
+	padding: 0.5rem 1rem;
+	border: 1px solid rgba(255, 215, 0, 0.2);
+}
+
+.financial-item {
+	display: flex;
+	align-items: center;
+	gap: 0.25rem;
+	font-size: 0.8rem;
+}
+
+.financial-icon {
+	font-size: 0.9rem;
+}
+
+.financial-label {
+	color: rgba(255, 255, 255, 0.8);
+	font-weight: 500;
+}
+
+.financial-value {
+	font-weight: 700;
+	font-family: 'Courier New', monospace;
+	font-size: 0.85rem;
+}
+
+.financial-value.cash {
+	color: #ffd700;
+}
+
+.financial-value.positive {
+	color: #10b981;
+}
+
+.financial-value.negative {
+	color: #ef4444;
+}
+
+.financial-value.assets {
+	color: #3b82f6;
+}
+
+.financial-value.liabilities {
+	color: #f59e0b;
+}
+
+/* Responsive financial header */
+@media (max-width: 1200px) {
+	.financial-summary-header {
+		gap: 1rem;
+		padding: 0.4rem 0.8rem;
+	}
+	
+	.financial-item {
+		font-size: 0.75rem;
+	}
+	
+	.financial-value {
+		font-size: 0.8rem;
+	}
+}
+
+@media (max-width: 768px) {
+	.financial-summary-header {
+		gap: 0.5rem;
+		padding: 0.3rem 0.6rem;
+		flex-wrap: wrap;
+	}
+	
+	.financial-item {
+		font-size: 0.7rem;
+		gap: 0.2rem;
+	}
+	
+	.financial-label {
+		display: none; /* Hide labels on mobile to save space */
+	}
+}

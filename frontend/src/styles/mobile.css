@@ -1,0 +1,282 @@
+/* === МОБІЛЬНА ОПТИМІЗАЦІЯ === */
+
+/* Touch-friendly розміри кнопок */
+@media (max-width: 768px) {
+  
+  /* === ОСНОВНІ TOUCH-FRIENDLY СТИЛІ === */
+  
+  /* Мінімальний розмір для touch targets - 44px */
+  .action-btn,
+  .quick-action-btn,
+  .sidebar-toggle,
+  button {
+    min-height: 44px;
+    min-width: 44px;
+    touch-action: manipulation; /* Прискорює touch events */
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0); /* Вимикає highlight */
+  }
+  
+  /* Великі кнопки для основних дій */
+  .action-btn.primary,
+  .action-btn.special {
+    min-height: 56px;
+    font-size: 1.1rem;
+    padding: 1rem 1.5rem;
+  }
+  
+  /* === ПОКРАЩЕНІ SIDEBAR === */
+  
+  .left-sidebar,
+  .right-sidebar {
+    width: 90vw;
+    max-width: 350px;
+    transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+  
+  .left-sidebar {
+    transform: translateX(-100%);
+  }
+  
+  .right-sidebar {
+    transform: translateX(100%);
+  }
+  
+  .left-sidebar.open {
+    transform: translateX(0);
+  }
+  
+  .right-sidebar.open {
+    transform: translateX(0);
+  }
+  
+  /* === ПОКРАЩЕНІ TOGGLE КНОПКИ === */
+  
+  .sidebar-toggle {
+    width: 50px;
+    height: 80px;
+    font-size: 1.4rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    border: 2px solid rgba(251, 191, 36, 0.3);
+  }
+  
+  .sidebar-toggle:active {
+    transform: scale(0.95);
+    transition: transform 0.1s;
+  }
+  
+  /* === АДАПТИВНИЙ TOP BAR === */
+  
+  .top-game-bar {
+    height: 70px;
+    padding: 0 1rem;
+  }
+  
+  .game-title {
+    font-size: 0.9rem;
+  }
+  
+  .game-meta-compact {
+    display: none; /* Ховаємо на мобільних для економії місця */
+  }
+  
+  /* === ПОКРАЩЕНА BOARD AREA === */
+  
+  .board-container {
+    top: 70px;
+    height: calc(100vh - 70px);
+    padding: 0.5rem;
+  }
+  
+  /* === TOUCH GESTURES === */
+  
+  .game-interface.fullscreen-board {
+    touch-action: pan-x pan-y;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Swipe gestures для sidebar */
+  .game-interface.fullscreen-board::before {
+    content: '';
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 20px;
+    height: 100vh;
+    z-index: 1000;
+    background: transparent;
+  }
+  
+  .game-interface.fullscreen-board::after {
+    content: '';
+    position: fixed;
+    right: 0;
+    top: 0;
+    width: 20px;
+    height: 100vh;
+    z-index: 1000;
+    background: transparent;
+  }
+  
+  /* === ФОРМИ ТА INPUTS === */
+  
+  input, 
+  select, 
+  textarea,
+  .input-field {
+    min-height: 44px;
+    font-size: 16px; /* Запобігає zoom на iOS */
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+  }
+  
+  /* === МОДАЛЬНІ ВІКНА === */
+  
+  .modal-content,
+  .cell-effects-overlay,
+  .dream-selection {
+    margin: 1rem;
+    border-radius: 12px;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+  
+  /* === FINGERPRINT NAVIGATION === */
+  
+  .quick-actions-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+  
+  .quick-action-btn {
+    min-height: 60px;
+    border-radius: 12px;
+    font-size: 0.9rem;
+  }
+  
+  /* === КОМУНІКАЦІЙНІ ЕЛЕМЕНТИ === */
+  
+  .chat-container,
+  .video-chat-container {
+    margin-bottom: 1rem;
+  }
+  
+  .chat-input {
+    font-size: 16px;
+    min-height: 44px;
+  }
+  
+  /* === FINANCIAL HEADER === */
+  
+  .financial-header {
+    padding: 0.5rem 1rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  
+  .financial-stat {
+    min-width: 80px;
+    text-align: center;
+  }
+  
+  .financial-stat-value {
+    font-size: 0.9rem;
+  }
+  
+}
+
+/* === ДУЖЕ МАЛЕНЬКІ ЕКРАНИ (до 480px) === */
+@media (max-width: 480px) {
+  
+  .left-sidebar,
+  .right-sidebar {
+    width: 95vw;
+  }
+  
+  .action-btn.primary,
+  .action-btn.special {
+    padding: 0.875rem 1.25rem;
+    font-size: 1rem;
+  }
+  
+  .top-game-bar {
+    height: 60px;
+    padding: 0 0.5rem;
+  }
+  
+  .board-container {
+    top: 60px;
+    height: calc(100vh - 60px);
+    padding: 0.25rem;
+  }
+  
+  .financial-header {
+    flex-direction: column;
+    align-items: center;
+    padding: 0.5rem;
+  }
+  
+  .sidebar-content {
+    padding: 0.75rem;
+  }
+  
+  .interaction-section,
+  .info-section {
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+  
+}
+
+/* === LANDSCAPE ОРІЄНТАЦІЯ === */
+@media (max-width: 768px) and (orientation: landscape) {
+  
+  .top-game-bar {
+    height: 50px;
+  }
+  
+  .board-container {
+    top: 50px;
+    height: calc(100vh - 50px);
+  }
+  
+  .left-sidebar,
+  .right-sidebar {
+    width: 70vw;
+    max-width: 300px;
+  }
+  
+  .financial-header {
+    padding: 0.25rem 1rem;
+  }
+  
+}
+
+/* === HOVER STATES ТІЛЬКИ ДЛЯ NON-TOUCH DEVICES === */
+@media (hover: hover) and (pointer: fine) {
+  
+  .action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+  }
+  
+  .sidebar-toggle:hover {
+    background: rgba(251, 191, 36, 0.2);
+  }
+  
+}
+
+/* === ДІСТАБІЛИТИ ZOOM НА DOUBLE TAP === */
+@media (max-width: 768px) {
+  
+  * {
+    touch-action: manipulation;
+  }
+  
+  input, select, textarea {
+    touch-action: manipulation;
+    user-select: text;
+  }
+  
+}
