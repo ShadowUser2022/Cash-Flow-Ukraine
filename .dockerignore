@@ -1,0 +1,31 @@
+# Ігноруємо все окрім backend
+*
+!backend/
+
+# Але ігноруємо в backend
+backend/node_modules
+backend/.env
+backend/.env.local
+backend/dist
+backend/*.log
+backend/.DS_Store
+backend/npm-debug.log
+
+# Frontend не потрібен
+frontend/
+
+# Documentation
+*.md
+docs/
+.github/
+
+# Development
+.git
+.vscode
+.idea
+
+# Tests
+test/
+tests/
+__tests__/
+coverage/
