@@ -8,6 +8,7 @@ import { GameSocketHandler } from './sockets/gameSocketHandler';
 import { WebRTCSocketHandler } from './sockets/webrtcSocketHandler';
 import { gameRoutes } from './controllers/gameController';
 import { errorMiddleware } from './middleware/errorMiddleware';
+import DatabaseConnection from './database/connection';
 
 // Завантажуємо змінні середовища
 dotenv.config();
@@ -31,6 +32,9 @@ const io = new Server(server, {
 const PORT = process.env.PORT || 3001;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/cashflow';
 
+// Initialize database connection
+const dbConnection = DatabaseConnection.getInstance();
+
 // Middleware
 app.use(cors({
   origin: [
@@ -51,8 +55,19 @@ app.use('/api/games', gameRoutes);
 app.use(errorMiddleware);
 
 // Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+app.get('/health', async (req, res) => {
+  const dbHealth = await dbConnection.healthCheck();
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    database: dbHealth
+  });
+});
+
+// Database health check endpoint
+app.get('/health/db', async (req, res) => {
+  const dbHealth = await dbConnection.healthCheck();
+  res.status(dbHealth.connected ? 200 : 503).json(dbHealth);
 });
 
 // Socket.io namespaces
@@ -63,10 +78,11 @@ const webrtcNamespace = io.of('/webrtc');
 const gameSocketHandler = new GameSocketHandler(gameNamespace);
 const webrtcSocketHandler = new WebRTCSocketHandler(webrtcNamespace);
 
-// Make socket namespaces available to the app
+// Make socket namespaces available to app
 app.set('gameNamespace', gameNamespace);
 app.set('webrtcNamespace', webrtcNamespace);
 app.set('gameSocketHandler', gameSocketHandler);
+app.set('dbConnection', dbConnection);
 
 gameNamespace.on('connection', (socket) => {
   console.log(`Game client connected: ${socket.id}`);
@@ -78,30 +94,45 @@ webrtcNamespace.on('connection', (socket) => {
   webrtcSocketHandler.handleConnection(socket);
 });
 
-// Підключення до MongoDB
-mongoose.connect(MONGODB_URI)
-  .then(() => {
-    console.log('Connected to MongoDB');
+// Start server with database connection
+async function startServer() {
+  try {
+    // Connect to database first
+    await dbConnection.connect();
     
-    // Запускаємо сервер
+    // Start server
     server.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-      console.log(`Game namespace: /game`);
-      console.log(`WebRTC namespace: /webrtc`);
+      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`🎮 Game namespace: /game`);
+      console.log(`📹 WebRTC namespace: /webrtc`);
+      console.log(`🗄️ Database: MongoDB connected`);
+      console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
     });
-  })
-  .catch((error) => {
-    console.error('MongoDB connection error:', error);
+  } catch (error) {
+    console.error('❌ Failed to start server:', error);
     process.exit(1);
-  });
+  }
+}
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
   console.log('SIGTERM received. Shutting down gracefully...');
-  server.close(() => {
-    mongoose.connection.close();
+  
+  server.close(async () => {
+    await dbConnection.disconnect();
     process.exit(0);
   });
 });
+
+process.on('SIGINT', async () => {
+  console.log('SIGINT received. Shutting down gracefully...');
+  
+  server.close(async () => {
+    await dbConnection.disconnect();
+    process.exit(0);
+  });
+});
+
+startServer();
 
 export { io, app };

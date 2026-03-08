@@ -1,9 +1,9 @@
-
 // filepath: backend/src/services/GameMechanicsService.ts
 import { Game, Player, Deal, Card, GameTurn, TurnAction, GameAction, FinancialTransaction, CellEffect } from '../../../shared/types/game';
 import { PROFESSIONS, BOARD_CELLS, GAME_CONFIG } from '../../../shared/types/game';
 import { GAME_CONSTANTS } from '../../../shared/constants/game';
 import { CardService } from './CardService';
+import TransactionService from './transactionService';
 
 export class GameMechanicsService {
 	/**
@@ -24,10 +24,7 @@ export class GameMechanicsService {
 			// Рух по щурячих перегонах
 			const newPosition = (player.position + diceResult) % GAME_CONSTANTS.RAT_RACE_CELLS;
 
-			// Перевірка чи гравець пройшов повне коло (отримує зарплату)
-			if (newPosition < player.position) {
-				this.collectSalary(player);
-			}
+			// НЕ обробляємо зарплату тут - вона обробляється в executeTurn()
 
 			player.position = newPosition;
 		}
@@ -66,19 +63,35 @@ export class GameMechanicsService {
 	/**
 	 * Отримання зарплати
 	 */
-	private static collectSalary(player: Player): void {
+	private static async collectSalary(player: Player, gameId: string): Promise<void> {
 		const totalIncome = player.finances.salary + player.finances.passiveIncome;
 		player.finances.cash += totalIncome;
+		
+		// Створюємо транзакцію в БД
+		try {
+			await TransactionService.getInstance().processSalary(player.id, gameId, totalIncome);
+		} catch (error) {
+			console.error('Error processing salary transaction:', error);
+		}
 	}
 
 	/**
 	 * Сплата витрат
 	 */
-	public static payExpenses(player: Player): { success: boolean; message: string } {
+	public static async payExpenses(player: Player, gameId: string): Promise<{ success: boolean; message: string }> {
 		const totalExpenses = player.finances.expenses;
+		const transactionService = TransactionService.getInstance();
 
 		if (player.finances.cash >= totalExpenses) {
 			player.finances.cash -= totalExpenses;
+			
+			// Створюємо транзакцію в БД
+			try {
+				await transactionService.processExpense(player.id, gameId, totalExpenses, 'Monthly expenses payment');
+			} catch (error) {
+				console.error('Error processing expense transaction:', error);
+			}
+			
 			return { success: true, message: `Сплачено витрати: $${totalExpenses}` };
 		} else {
 			// Якщо не вистачає готівки, гравець берет кредит
@@ -86,11 +99,19 @@ export class GameMechanicsService {
 			player.finances.cash = 0;
 
 			// Додаємо заборгованість (спрощено - додаємо до витрат)
-			player.finances.expenses += Math.floor(shortfall * 0.1); // 10% річних щомісяця
+			const interestAmount = Math.floor(shortfall * 0.1); // 10% річних щомісяця
+			player.finances.expenses += interestAmount;
+
+			// Створюємо транзакцію в БД
+			try {
+				await transactionService.processExpense(player.id, gameId, player.finances.cash, 'Monthly expenses with loan');
+			} catch (error) {
+				console.error('Error processing expense transaction:', error);
+			}
 
 			return {
 				success: false,
-				message: `Недостатньо готівки! Взято кредит на $${shortfall}. Щомісячні витрати збільшились на $${Math.floor(shortfall * 0.1)}`
+				message: `Недостатньо готівки! Взято кредит на $${shortfall}. Щомісячні витрати збільшились на $${interestAmount}`
 			};
 		}
 	}
@@ -98,62 +119,65 @@ export class GameMechanicsService {
 	/**
 	 * Купівля угоди
 	 */
-	public static buyDeal(game: Game, playerId: string, dealId: string): { success: boolean; message: string; transaction?: FinancialTransaction } {
+	public static async buyDeal(game: Game, playerId: string, dealId: string): Promise<{ success: boolean; message: string; transaction?: FinancialTransaction }> {
 		const player = game.players.find(p => p.id === playerId);
 		const deal = game.deals.find(d => d.id === dealId && d.isAvailable);
+		const transactionService = TransactionService.getInstance();
 
-		if (!player) return { success: false, message: 'Гравця не знайдено' };
-		if (!deal) return { success: false, message: 'Угоду не знайдено або недоступна' };
-
-		// Перевірка вимог угоди
-		const canBuy = this.checkDealRequirements(player, deal);
-		if (!canBuy.success) {
-			return canBuy;
+		if (!player || !deal) {
+			return { success: false, message: 'Гравця або угоду не знайдено' };
 		}
 
-		const requiredCash = deal.downPayment || deal.cost;
+		// Перевіряємо вимоги
+		const requirementCheck = this.checkDealRequirements(player, deal);
+		if (!requirementCheck.success) {
+			return { success: false, message: requirementCheck.message };
+		}
 
+		const requiredCash = deal.downPayment || deal.cost || 0;
 		if (player.finances.cash < requiredCash) {
-			return { success: false, message: `Недостатньо готівки. Потрібно: $${requiredCash}, є: $${player.finances.cash}` };
+			return { success: false, message: `Недостатньо готівки. Потрібно: $${requiredCash}` };
 		}
 
-		// Виконання покупки
-		player.finances.cash -= requiredCash;
+		try {
+			// Створюємо транзакцію в БД
+			await transactionService.processAssetPurchase(player.id, game.id, requiredCash, deal.id, `Покупка: ${deal.title}`);
 
-		// Додавання активу
-		if (deal.type === 'small' || deal.type === 'big') {
-			const asset = {
-				id: `asset_${Date.now()}`,
-				type: deal.category as any,
+			// Оновлюємо фінанси гравця
+			player.finances.cash -= requiredCash;
+			
+			// Додаємо актив до пасивного доходу
+			if (deal.cashFlow && deal.cashFlow > 0) {
+				player.finances.passiveIncome += deal.cashFlow;
+			}
+
+			// Додаємо актив
+			player.finances.assets.push({
+				id: deal.id,
 				name: deal.title,
+				type: deal.category,
 				cost: deal.cost,
-				cashFlow: deal.cashFlow || 0,
-				downPayment: deal.downPayment,
-				mortgage: deal.mortgage,
-				description: deal.description
+				cashFlow: deal.cashFlow,
+				acquiredAt: new Date()
+			});
+
+			// Помічаємо угоду як продану
+			deal.isAvailable = false;
+			deal.playerId = playerId;
+
+			const transaction: FinancialTransaction = {
+				id: `txn_${Date.now()}`,
+				amount: requiredCash,
+				description: `Покупка: ${deal.title}`,
+				recurring: false,
+				timestamp: new Date()
 			};
 
-			player.finances.assets.push(asset);
-
-			// Автоматично перераховуємо пасивний дохід з усіх активів
-			this.recalculatePlayerFinances(player);
+			return { success: true, message: `Успішно придбано: ${deal.title}`, transaction };
+		} catch (error) {
+			console.error('Error processing deal purchase:', error);
+			return { success: false, message: 'Помилка при покупці угоди' };
 		}
-
-		// Видалення угоди з доступних
-		deal.isAvailable = false;
-		deal.playerId = playerId;
-
-		const transaction: FinancialTransaction = {
-			id: `trans_${Date.now()}`,
-			playerId,
-			type: 'asset_purchase',
-			amount: requiredCash,
-			description: `Покупка: ${deal.title}`,
-			recurring: false,
-			timestamp: new Date()
-		};
-
-		return { success: true, message: `Успішно придбано: ${deal.title}`, transaction };
 	}
 
 	/**
@@ -188,6 +212,60 @@ export class GameMechanicsService {
 	}
 
 	/**
+	 * Обробка фінансових ефектів клітинки
+	 */
+	private static async processCellEffect(player: Player, gameId: string, cellEffect: CellEffect): Promise<void> {
+		const transactionService = TransactionService.getInstance();
+		
+		try {
+			switch (cellEffect.type) {
+				case 'draw_card':
+					const cardData = cellEffect.data as any;
+					if (cardData.cardType === 'doodad' && cardData.card) {
+						// Обробляємо витрати на doodad
+						await transactionService.processExpense(
+							player.id,
+							gameId,
+							cardData.card.cost || 0,
+							cardData.card.title || 'Doodad expense'
+						);
+						player.finances.cash -= cardData.card.cost || 0;
+					}
+					break;
+					
+				case 'choose_charity':
+					// Благодійність обробляється окремо
+					break;
+					
+				case 'market_event':
+					// Ринкові події
+					if (cellEffect.data?.amount) {
+						if (cellEffect.data.amount > 0) {
+							await transactionService.processDeal(
+								player.id,
+								gameId,
+								cellEffect.data.amount,
+								'market_event',
+								cellEffect.data.description || 'Market gain'
+							);
+						} else {
+							await transactionService.processExpense(
+								player.id,
+								gameId,
+								Math.abs(cellEffect.data.amount),
+								cellEffect.data.description || 'Market loss'
+							);
+						}
+						player.finances.cash += cellEffect.data.amount;
+					}
+					break;
+			}
+		} catch (error) {
+			console.error('Error processing cell effect:', error);
+		}
+	}
+
+	/**
 	 * Перевірка умов переходу на швидку доріжку
 	 */
 	public static checkFastTrackEligibility(player: Player): boolean {
@@ -205,23 +283,155 @@ export class GameMechanicsService {
 	}
 
 	/**
+	 * Перехід до наступного гравця
+	 */
+	public static nextPlayer(game: Game): string {
+		const currentPlayerIndex = game.players.findIndex(p => p.id === game.currentPlayer);
+		const nextPlayerIndex = (currentPlayerIndex + 1) % game.players.length;
+		return game.players[nextPlayerIndex].id;
+	}
+
+	/**
+	 * Перевірка умов перемоги
+	 */
+	public static checkWinCondition(player: Player): boolean {
+		if (!player.isOnFastTrack) return false;
+
+		// Умова перемоги: пасивний дохід >= $50,000 або досягнення фінансової мрії
+		return player.finances.passiveIncome >= 50000;
+	}
+
+	/**
+	 * Перерахунок фінансових показників гравця
+	 */
+	public static recalculatePlayerFinances(player: Player): void {
+		let passiveIncome = 0;
+		let totalExpenses = player.profession?.expenses || 0;
+
+		player.finances.assets.forEach(asset => {
+			if (asset.cashFlow && asset.cashFlow > 0) {
+				passiveIncome += asset.cashFlow;
+			}
+		});
+
+		player.finances.liabilities.forEach(liability => {
+			if (liability.monthlyPayment) {
+				totalExpenses += liability.monthlyPayment;
+			}
+		});
+
+		player.finances.passiveIncome = passiveIncome;
+		player.finances.expenses = totalExpenses;
+
+		console.log(`💰 Recalculated finances for ${player.name}:`, {
+			passiveIncome,
+			expenses: totalExpenses,
+			cashFlow: passiveIncome - totalExpenses
+		});
+	}
+
+	/**
+	 * Виконання повного ходу гравця
+	 */
+	public static async executeTurn(game: Game, playerId: string): Promise<GameTurn> {
+		const player = game.players.find(p => p.id === playerId);
+		if (!player) {
+			throw new Error('Гравця не знайдено');
+		}
+
+		const turn: GameTurn = {
+			id: `turn_${game.id}_${playerId}_${Date.now()}`,
+			gameId: game.id,
+			playerId,
+			turnNumber: game.turn,
+			actions: [],
+			startedAt: new Date(),
+			isCompleted: false
+		};
+
+		try {
+			// 1. Спочатку сплачуємо щомісячні витрати
+			const expenseResult = await this.payExpenses(player, game.id);
+			turn.actions.push({
+				id: `action_${Date.now()}_expense`,
+				type: 'pay_expense',
+				data: { amount: player.finances.expenses },
+				result: { message: expenseResult.message },
+				timestamp: new Date()
+			});
+
+			// 2. Кидання кубика та переміщення
+			const moveResult = this.rollDiceAndMove(game, playerId);
+
+			// 3. Додаємо дію переміщення
+			turn.actions.push({
+				id: `action_${Date.now()}_move`,
+				type: 'move',
+				data: { diceRoll: moveResult.diceResult, newPosition: moveResult.newPosition },
+				result: moveResult,
+				timestamp: new Date()
+			});
+
+			// 4. Виконуємо дію клітинки (якщо є)
+			if (moveResult.cellEffect) {
+				turn.actions.push({
+					id: `action_${Date.now()}_cell`,
+					type: 'draw_card',
+					data: moveResult.cellEffect.data,
+					result: { effectType: moveResult.cellEffect.type },
+					timestamp: new Date()
+				});
+
+				// Обробляємо фінансові ефекти клітинки
+				await this.processCellEffect(player, game.id, moveResult.cellEffect);
+			}
+
+			// 5. Перевіряємо можливість переходу на швидку доріжку
+			if (!player.isOnFastTrack && this.checkFastTrackEligibility(player)) {
+				// Пропонуємо перехід (це буде окрема дія користувача)
+				turn.actions.push({
+					id: `action_${Date.now()}_fasttrack_check`,
+					type: 'move',
+					data: { fastTrackEligible: true },
+					result: { message: 'Можливий перехід на швидку доріжку!' },
+					timestamp: new Date()
+				});
+			}
+
+			turn.completedAt = new Date();
+			turn.isCompleted = true;
+
+		} catch (error) {
+			console.error('Помилка під час виконання ходу:', error);
+			turn.actions.push({
+				id: `action_${Date.now()}_error`,
+				type: 'move',
+				data: { error: error instanceof Error ? error.message : 'Невідома помилка' },
+				result: { success: false },
+				timestamp: new Date()
+			});
+		}
+
+		return turn;
+	}
+
+	/**
 	 * Генерація нових угод
 	 */
-	public static generateDeals(game: Game, count: number = 4): Deal[] {
-		const dealTemplates = this.getDealTemplates();
+	public static generateDeals(game: Game, count: number): Deal[] {
+		const templates = this.getDealTemplates();
 		const newDeals: Deal[] = [];
 
 		for (let i = 0; i < count; i++) {
-			const template = dealTemplates[Math.floor(Math.random() * dealTemplates.length)];
+			const template = templates[Math.floor(Math.random() * templates.length)];
 			const deal: Deal = {
-				...template,
 				id: `deal_${Date.now()}_${i}`,
+				...template,
 				isAvailable: true
 			};
 			newDeals.push(deal);
 		}
 
-		game.deals = [...game.deals.filter(d => !d.isAvailable), ...newDeals];
 		return newDeals;
 	}
 
@@ -236,8 +446,8 @@ export class GameMechanicsService {
 				category: 'real_estate',
 				title: 'Дуплекс',
 				description: 'Невеличкий житловий будинок на 2 родини',
-				cost: 45000,
-				downPayment: 5000,
+				cost: 50000,
+				downPayment: 10000,
 				mortgage: 40000,
 				cashFlow: 100
 			},
@@ -297,148 +507,11 @@ export class GameMechanicsService {
 			{
 				type: 'doodad',
 				category: 'expense',
-				title: 'Відпустка',
-				description: 'Дорога відпустка у кредит',
-				cost: 5000,
-				cashFlow: -50
+				title: 'Дорогий відпочинок',
+				description: 'Тиждень на Мальдівах коштував більше, ніж планували. Витрати на подорожі зросли.',
+				cost: 3500,
+				cashFlow: -200
 			}
 		];
-	}
-
-	/**
-	 * Виконання ходу гравця
-	 */
-	public static executeTurn(game: Game, playerId: string): GameTurn {
-		const player = game.players.find(p => p.id === playerId);
-		if (!player) {
-			throw new Error('Гравця не знайдено');
-		}
-
-		const turn: GameTurn = {
-			playerId,
-			turnNumber: game.turn,
-			actions: [],
-			startedAt: new Date(),
-			isCompleted: false
-		};
-
-		try {
-			// 1. Спочатку сплачуємо витрати
-			const expenseResult = this.payExpenses(player);
-			turn.actions.push({
-				id: `action_${Date.now()}_expense`,
-				type: 'pay_expense',
-				data: { amount: player.finances.expenses },
-				result: expenseResult,
-				timestamp: new Date()
-			});
-
-			// 2. Отримуємо дохід
-			const income = player.finances.salary + player.finances.passiveIncome;
-			player.finances.cash += income;
-			turn.actions.push({
-				id: `action_${Date.now()}_income`,
-				type: 'collect_income',
-				data: { amount: income },
-				result: { message: `Отримано доходу: $${income}` },
-				timestamp: new Date()
-			});
-
-			// 3. Кидаємо кубик і рухаємось
-			const moveResult = this.rollDiceAndMove(game, playerId);
-			turn.diceRoll = moveResult.diceResult;
-			turn.actions.push({
-				id: `action_${Date.now()}_move`,
-				type: 'move',
-				data: { diceRoll: moveResult.diceResult, newPosition: moveResult.newPosition },
-				result: moveResult,
-				timestamp: new Date()
-			});
-
-			// 4. Виконуємо дію клітинки (якщо є)
-			if (moveResult.cellEffect) {
-				turn.actions.push({
-					id: `action_${Date.now()}_cell`,
-					type: 'draw_card',
-					data: moveResult.cellEffect.data,
-					result: { effectType: moveResult.cellEffect.type },
-					timestamp: new Date()
-				});
-			}
-
-			// 5. Перевіряємо можливість переходу на швидку доріжку
-			if (!player.isOnFastTrack && this.checkFastTrackEligibility(player)) {
-				// Пропонуємо перехід (це буде окрема дія користувача)
-				turn.actions.push({
-					id: `action_${Date.now()}_fasttrack_check`,
-					type: 'move',
-					data: { fastTrackEligible: true },
-					result: { message: 'Можливий перехід на швидку доріжку!' },
-					timestamp: new Date()
-				});
-			}
-
-			turn.completedAt = new Date();
-			turn.isCompleted = true;
-
-		} catch (error) {
-			console.error('Помилка під час виконання ходу:', error);
-			turn.actions.push({
-				id: `action_${Date.now()}_error`,
-				type: 'move',
-				data: { error: error instanceof Error ? error.message : 'Невідома помилка' },
-				result: { success: false },
-				timestamp: new Date()
-			});
-		}
-
-		return turn;
-	}
-
-	/**
-	 * Перехід до наступного гравця
-	 */
-	public static nextPlayer(game: Game): string {
-		const currentPlayerIndex = game.players.findIndex(p => p.id === game.currentPlayer);
-		const nextPlayerIndex = (currentPlayerIndex + 1) % game.players.length;
-		game.currentPlayer = game.players[nextPlayerIndex].id;
-		game.turn++;
-		return game.currentPlayer;
-	}
-
-	/**
-	 * Перевірка умов перемоги
-	 */
-	public static checkWinCondition(player: Player): boolean {
-		if (!player.isOnFastTrack) return false;
-
-		// Умова перемоги: пасивний дохід >= $50,000 або досягнення фінансової мрії
-		return player.finances.passiveIncome >= 50000;
-	}
-
-	/**
-	 * Перерахунок фінансових показників гравця
-	 */
-	public static recalculatePlayerFinances(player: Player): void {
-		// Перерахунок пасивного доходу з усіх активів
-		let passiveIncome = 0;
-		player.finances.assets.forEach(asset => {
-			passiveIncome += asset.cashFlow || 0;
-		});
-		player.finances.passiveIncome = passiveIncome;
-
-		// Перерахунок загальних витрат (професійні + зобов'язання)
-		let totalExpenses = player.profession?.expenses || 0;
-		player.finances.liabilities.forEach(liability => {
-			totalExpenses += liability.monthlyPayment || 0;
-		});
-		player.finances.expenses = totalExpenses;
-
-		console.log(`💰 Recalculated finances for ${player.name}:`, {
-			passiveIncome: player.finances.passiveIncome,
-			expenses: player.finances.expenses,
-			assets: player.finances.assets.length,
-			liabilities: player.finances.liabilities.length
-		});
 	}
 }

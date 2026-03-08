@@ -1727,7 +1727,7 @@ body {
 
 .info-section {
 	display: grid;
-	grid-template-columns: 1fr 1fr 1fr;
+	/* grid-template-columns: 1fr 1fr 1fr; */
 	/* Three columns for better layout */
 	gap: 1.5rem;
 	/* Збільшений gap */

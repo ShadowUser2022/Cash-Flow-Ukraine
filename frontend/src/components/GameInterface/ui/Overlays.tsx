@@ -1,15 +1,11 @@
 // Overlays.tsx
-// Toast, Chat, VideoChat, MobileNavigation
+// Toast, MobileNavigation
 
 import React from 'react';
 
 interface OverlaysProps {
   toasts: any[];
   removeToast: (id: string) => void;
-  isChatMinimized: boolean;
-  setIsChatMinimized: (v: boolean) => void;
-  isVideoChatMinimized: boolean;
-  setIsVideoChatMinimized: (v: boolean) => void;
   gameId: string;
   isMobile: boolean;
   leftSidebarOpen: boolean;
@@ -18,8 +14,8 @@ interface OverlaysProps {
   handleRightSidebarToggle: () => void;
 }
 
-const Overlays: React.FC<OverlaysProps> = (props) => {
-  // ...рендер ToastNotifications, Chat, VideoChat, MobileNavigation...
+const Overlays: React.FC<OverlaysProps> = () => {
+  // ...рендер ToastNotifications, MobileNavigation...
   // ...existing code...
   return null;
 };

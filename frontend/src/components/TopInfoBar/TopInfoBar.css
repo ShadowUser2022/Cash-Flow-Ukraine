@@ -9,7 +9,6 @@
   justify-content: space-between;
   background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
   border-bottom: 2px solid #FFD700;
-  color: #FFD700;
   padding: 10px 32px 10px 24px;
   font-size: 1.08rem;
   z-index: 2100;
@@ -47,7 +46,7 @@
   background: rgba(34, 34, 34, 0.7);
   border-radius: 8px;
   padding: 6px 14px;
-  color: #FFD700;
+color: grey  ;
   font-weight: 500;
   font-size: 1em;
   box-shadow: 0 2px 8px rgba(255, 215, 0, 0.05);

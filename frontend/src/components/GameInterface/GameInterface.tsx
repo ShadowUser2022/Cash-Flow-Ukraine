@@ -13,8 +13,6 @@ import ToastNotifications from './ui/Overlays';
 import LeftSidebar from '../LeftSidebar/LeftSidebar';
 import RightSidebar from '../RightSidebar/RightSidebar';
 import MobileNavigation from './ui/Sidebars';
-import Chat from '../Chat/Chat';
-import VideoChat from '../VideoChat/VideoChat';
 
 
 interface GameInterfaceProps {
@@ -31,8 +29,6 @@ const GameInterface: React.FC<GameInterfaceProps> = ({ gameId, playerId }) => {
   const { game, currentPlayer } = useGameStore();
   // Stub/mock дані для пропсів
   const [playerMovement] = useState<any>(null); // для BoardContainer
-  const [isChatMinimized, setIsChatMinimized] = useState(true);
-  const [isVideoChatMinimized, setIsVideoChatMinimized] = useState(true);
   const [leftSidebarOpen, setLeftSidebarOpen] = useState(false);
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false);
   const { toasts, removeToast, addToast } = useToast();
@@ -109,13 +105,9 @@ const GameInterface: React.FC<GameInterfaceProps> = ({ gameId, playerId }) => {
           isMyTurn={isMyTurn}
           canMoveToFastTrack={false} // TODO: додати реальну перевірку
           diceAnimation={{ isRolling: false }} // stub
-          isChatMinimized={isChatMinimized}
-          isVideoChatMinimized={isVideoChatMinimized}
           onExecuteTurn={handleExecuteTurn}
           onMoveToFastTrack={() => {}}
           onDiceRollComplete={handleDiceRollComplete}
-          onToggleChat={() => setIsChatMinimized((v) => !v)}
-          onToggleVideoChat={() => setIsVideoChatMinimized((v) => !v)}
         />
       )}
       {/* Права бічна панель — окремий компонент */}
@@ -148,10 +140,6 @@ const GameInterface: React.FC<GameInterfaceProps> = ({ gameId, playerId }) => {
       <ToastNotifications
         toasts={toasts}
         removeToast={removeToast}
-        isChatMinimized={isChatMinimized}
-        setIsChatMinimized={setIsChatMinimized}
-        isVideoChatMinimized={isVideoChatMinimized}
-        setIsVideoChatMinimized={setIsVideoChatMinimized}
         gameId={gameId}
         isMobile={isMobile}
         leftSidebarOpen={leftSidebarOpen}
@@ -159,23 +147,6 @@ const GameInterface: React.FC<GameInterfaceProps> = ({ gameId, playerId }) => {
         handleLeftSidebarToggle={handleLeftSidebarToggle}
         handleRightSidebarToggle={handleRightSidebarToggle}
       />
-      {/* Docked чат і відео чат знизу */}
-      <div style={{ position: 'fixed', left: 24, bottom: 24, zIndex: 3000 }}>
-        <Chat
-          roomId={gameId}
-          isMinimized={isChatMinimized}
-          onToggleMinimize={() => setIsChatMinimized((v) => !v)}
-          onClose={() => setIsChatMinimized(true)}
-        />
-      </div>
-      <div style={{ position: 'fixed', right: 24, bottom: 24, zIndex: 3000 }}>
-        <VideoChat
-          roomId={gameId}
-          isMinimized={isVideoChatMinimized}
-          onToggleMinimize={() => setIsVideoChatMinimized((v) => !v)}
-          onClose={() => setIsVideoChatMinimized(true)}
-        />
-      </div>
       {/* Мобільна навігація */}
       {isMobile && (
         <MobileNavigation

@@ -213,6 +213,14 @@ export class GameSocketHandler {
 
 			const game = await this.gameService.getGame(gameId);
 
+			if (!game) {
+				socket.emit(SOCKET_EVENTS.ERROR, {
+					message: 'Гру не знайдено',
+					code: 'GAME_NOT_FOUND'
+				});
+				return;
+			}
+
 			// Перевіряємо чи це хід гравця
 			if (game.currentPlayer !== playerId) {
 				socket.emit(SOCKET_EVENTS.ERROR, {
@@ -223,7 +231,7 @@ export class GameSocketHandler {
 			}
 
 			// Виконуємо повний хід
-			const turn = GameMechanicsService.executeTurn(game, playerId);
+			const turn = await GameMechanicsService.executeTurn(game, playerId);
 
 			// Переходимо до наступного гравця
 			const nextPlayer = GameMechanicsService.nextPlayer(game);
@@ -310,6 +318,15 @@ export class GameSocketHandler {
 			console.log(`🛒 Player ${playerId} buying deal ${dealId} in game ${gameId}`);
 
 			const game = await this.gameService.getGame(gameId);
+			
+			if (!game) {
+				socket.emit(SOCKET_EVENTS.ERROR, {
+					message: 'Гру не знайдено',
+					code: 'GAME_NOT_FOUND'
+				});
+				return;
+			}
+
 			const player = game.players.find(p => p.id === playerId);
 			
 			// Логуємо фінанси ДО покупки
@@ -322,7 +339,7 @@ export class GameSocketHandler {
 				});
 			}
 
-			const result = GameMechanicsService.buyDeal(game, playerId, dealId);
+			const result = await GameMechanicsService.buyDeal(game, playerId, dealId);
 
 			if (result.success) {
 				// Логуємо фінанси ПІСЛЯ покупки
@@ -331,13 +348,9 @@ export class GameSocketHandler {
 						cash: player.finances.cash,
 						passiveIncome: player.finances.passiveIncome,
 						expenses: player.finances.expenses,
-						assetsCount: player.finances.assets.length,
-						lastAsset: player.finances.assets[player.finances.assets.length - 1]
+						assetsCount: player.finances.assets.length
 					});
 				}
-
-				await this.gameService.updateGame(gameId, game);
-
 				console.log(`✅ Sending DEAL_COMPLETED event for player ${playerId}`);
 
 				// Відправляємо успішний результат
@@ -568,7 +581,7 @@ export class GameSocketHandler {
 			console.log(`Player ${playerId} setting ready status to ${isReady} in game ${gameId}`);
 
 			// Update player ready status
-			await this.gameService.setPlayerReady(gameId, playerId, isReady);
+			await this.gameService.updatePlayerReady(gameId, playerId, isReady);
 			const game = await this.gameService.getGame(gameId);
 
 			// Broadcast updated game state
@@ -594,7 +607,7 @@ export class GameSocketHandler {
 			console.log(`Player ${playerId} selecting profession ${profession} in game ${gameId}`);
 
 			// Update player profession
-			await this.gameService.changePlayerProfession(gameId, playerId, profession);
+			await this.gameService.updatePlayerProfession(gameId, playerId, profession);
 			const game = await this.gameService.getGame(gameId);
 
 			// Broadcast updated game state

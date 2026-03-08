@@ -1,0 +1,78 @@
+/* VideoChatModal - Модальне вікно відео чату */
+.video-chat-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  backdrop-filter: blur(8px);
+}
+
+.video-chat-modal-content {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f172a 100%);
+  border: 2px solid rgba(147, 197, 253, 0.3);
+  border-radius: 20px;
+  overflow: hidden;
+  width: 90%;
+  max-width: 900px;
+  max-height: 90vh;
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(147, 197, 253, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.video-chat-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(147, 197, 253, 0.1);
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.video-chat-modal-header h3 {
+  margin: 0;
+  color: #f8fafc;
+  font-size: 1.1rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.video-chat-modal-body {
+  height: calc(90vh - 60px);
+  overflow: hidden;
+}
+
+.video-chat-modal-body .video-chat-container {
+  height: 100%;
+  border: none;
+  border-radius: 0;
+}
+
+/* Адаптивність */
+@media (max-width: 768px) {
+  .video-chat-modal-content {
+    width: 95%;
+    max-height: 95vh;
+  }
+  
+  .video-chat-modal-header {
+    padding: 12px 16px;
+  }
+  
+  .video-chat-modal-header h3 {
+    font-size: 1rem;
+  }
+  
+  .video-chat-modal-body {
+    height: calc(95vh - 50px);
+  }
+}

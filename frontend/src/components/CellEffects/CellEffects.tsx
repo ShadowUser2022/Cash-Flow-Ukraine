@@ -15,7 +15,7 @@ interface CellEffectsProps {
 
 const CellEffects: React.FC<CellEffectsProps> = ({ cellEffect, onEffectCompleted, onCharityChoice }) => {
 	const { currentPlayer, game } = useGameStore();
-	const { info, success, error, warning } = useToast();
+	const { info, success, warning } = useToast();
 	const { buyDeal } = useDeals();
 	const [selectedOption, setSelectedOption] = useState<string>('');
 	const [isProcessing, setIsProcessing] = useState(false);
@@ -264,7 +264,8 @@ const CellEffects: React.FC<CellEffectsProps> = ({ cellEffect, onEffectCompleted
 			}, 2000);
 		} catch (error) {
 			console.error('Error handling market action:', error);
-			error('Помилка', 'Не вдалося виконати дію', 3000);
+			// TODO: Add notification system
+			console.log('Помилка: Не вдалося виконати дію');
 			setIsProcessing(false);
 		}
 	};
@@ -306,12 +307,8 @@ const CellEffects: React.FC<CellEffectsProps> = ({ cellEffect, onEffectCompleted
 
 				console.log('✅ Local player state updated');
 
-				addNotification({
-					type: 'warning',
-					title: '💸 Витрати сплачено',
-					message: `Сплачено $${amount.toLocaleString()}, залишок: $${newCash.toLocaleString()}`,
-					duration: 3000
-				});
+				// TODO: Add notification system
+				console.log(`💸 Витрати сплачено: $${amount.toLocaleString()}, залишок: $${newCash.toLocaleString()}`);
 
 				// Завершуємо ефект після короткої затримки
 				setTimeout(() => {
@@ -323,12 +320,7 @@ const CellEffects: React.FC<CellEffectsProps> = ({ cellEffect, onEffectCompleted
 				socketService.payExpense(game.id, currentPlayer.id, amount);
 				console.log('✅ CellEffects: Expense payment sent via socket');
 
-				addNotification({
-					type: 'warning',
-					title: 'Обробка платежу...',
-					message: `Сплачуємо $${amount.toLocaleString()}`,
-					duration: 2000
-				});
+				console.log(`Обробка платежу: $${amount.toLocaleString()}`);
 
 				// Автоматично завершуємо хід після сплати витрат
 				setTimeout(() => {
@@ -339,12 +331,7 @@ const CellEffects: React.FC<CellEffectsProps> = ({ cellEffect, onEffectCompleted
 			}
 		} catch (error) {
 			console.error('❌ CellEffects: Error paying expense:', error);
-			addNotification({
-				type: 'error',
-				title: 'Помилка',
-				message: 'Не вдалося сплатити витрати',
-				duration: 3000
-			});
+			console.log('Помилка: Не вдалося сплатити витрати');
 			setIsProcessing(false);
 		}
 	};

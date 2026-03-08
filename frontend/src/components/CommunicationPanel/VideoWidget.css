@@ -1,0 +1,143 @@
+/* VideoWidget - Невеликий віджет відео зв'язку внизу екрана */
+.video-widget {
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  width: 320px;
+  height: 240px;
+  background: linear-gradient(135deg, rgba(26, 26, 46, 0.95) 0%, rgba(22, 33, 62, 0.95) 50%, rgba(15, 23, 42, 0.95) 100%);
+  border: 1px solid rgba(147, 197, 253, 0.3);
+  border-radius: 16px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(147, 197, 253, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
+  z-index: 1500;
+  animation: slideUp 0.3s ease-out;
+  overflow: hidden;
+}
+
+.widget-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(147, 197, 253, 0.1);
+  background: rgba(59, 130, 246, 0.05);
+  border-radius: 16px 16px 0 0;
+}
+
+.widget-header h4 {
+  margin: 0;
+  color: #f8fafc;
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.widget-close {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 3px 6px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.widget-close:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #f87171;
+}
+
+.widget-content {
+  height: calc(100% - 40px);
+  overflow: hidden;
+}
+
+.widget-content .video-chat-container {
+  height: 100%;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+.widget-content .video-chat-header {
+  display: none;
+}
+
+.widget-content .video-grid {
+  height: 100%;
+  padding: 8px;
+}
+
+.widget-content .local-video-container,
+.widget-content .remote-video-container {
+  width: 100%;
+  height: 120px;
+  margin-bottom: 8px;
+}
+
+.widget-content .video-controls {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 8px;
+  padding: 6px;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.widget-content .control-btn {
+  width: 32px;
+  height: 32px;
+  font-size: 0.85rem;
+  padding: 0;
+}
+
+.widget-content .connection-status {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Адаптивність */
+@media (max-width: 768px) {
+  .video-widget {
+    width: 280px;
+    height: 200px;
+    bottom: 70px;
+    right: 16px;
+  }
+  
+  .widget-header {
+    padding: 8px 12px;
+  }
+  
+  .widget-header h4 {
+    font-size: 0.8rem;
+  }
+  
+  .widget-content .local-video-container,
+  .widget-content .remote-video-container {
+    height: 100px;
+  }
+}

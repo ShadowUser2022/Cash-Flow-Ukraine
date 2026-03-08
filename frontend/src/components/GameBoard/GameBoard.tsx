@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import useGameStore from '../../store/gameStore';
 import type { Player } from '../../types';
 import DiceStats from './DiceStats';
+import CommunicationPanel from '../CommunicationPanel/CommunicationPanel';
 import './GameBoard.css';
 
 interface GameBoardProps {
@@ -289,6 +290,9 @@ const GameBoard: React.FC<GameBoardProps> = ({
 					</div>
 				</div>
 			</div>
+
+			{/* Панель комунікації */}
+			<CommunicationPanel gameId={game?.id || ''} />
 		</div>
 	);
 };

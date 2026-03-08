@@ -9,13 +9,9 @@ interface GameInteractionPanelProps {
   isMyTurn: boolean;
   canMoveToFastTrack: boolean;
   diceAnimation: any;
-  isChatMinimized: boolean;
-  isVideoChatMinimized: boolean;
   onExecuteTurn: () => void;
   onMoveToFastTrack: () => void;
   onDiceRollComplete: (result: number) => void;
-  onToggleChat: () => void;
-  onToggleVideoChat: () => void;
   onBackToLobby?: () => void;
 }
 
@@ -24,13 +20,9 @@ export const GameInteractionPanel: React.FC<GameInteractionPanelProps> = ({
   isMyTurn,
   canMoveToFastTrack,
   diceAnimation,
-  isChatMinimized,
-  isVideoChatMinimized,
   onExecuteTurn,
   onMoveToFastTrack,
   onDiceRollComplete,
-  onToggleChat,
-  onToggleVideoChat,
   onBackToLobby
 }) => {
   const handleTurnAction = () => {
@@ -91,27 +83,6 @@ export const GameInteractionPanel: React.FC<GameInteractionPanelProps> = ({
       </div>
 
 
-
-      {/* Комунікація */}
-      <div className="interaction-section">
-        <h4 className="section-title">💬 Комунікація</h4>
-        <div className="quick-actions">
-          <button 
-            className={`quick-btn ${!isChatMinimized ? 'active' : ''}`}
-            onClick={onToggleChat}
-            title={isChatMinimized ? "Відкрити чат" : "Закрити чат"}
-          >
-            💬 Чат {!isChatMinimized && '📋'}
-          </button>
-          <button 
-            className={`quick-btn ${!isVideoChatMinimized ? 'active' : ''}`}
-            onClick={onToggleVideoChat}
-            title={isVideoChatMinimized ? "Увімкнути відео" : "Вимкнути відео"}
-          >
-            📹 Відео {!isVideoChatMinimized && '🟢'}
-          </button>
-        </div>
-      </div>
 
       {/* Вихід */}
       <div className="interaction-section">

@@ -1,0 +1,162 @@
+/* CommunicationPanel - Панель комунікації в правому нижньому куті */
+.communication-panel {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 1000;
+  background: rgba(10, 10, 10, 0.95);
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(147, 197, 253, 0.2);
+  backdrop-filter: blur(20px);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(147, 197, 253, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.communication-btn {
+  width: 48px;
+  height: 48px;
+  border: none;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.communication-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.communication-btn:hover::before {
+  opacity: 1;
+}
+
+.communication-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(251, 191, 36, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.communication-btn.active {
+  background: rgba(251, 191, 36, 0.15);
+  border-color: rgba(251, 191, 36, 0.5);
+  box-shadow:
+    0 0 16px rgba(251, 191, 36, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.communication-btn.active:hover {
+  background: rgba(251, 191, 36, 0.2);
+  border-color: rgba(251, 191, 36, 0.6);
+  box-shadow:
+    0 0 20px rgba(251, 191, 36, 0.4),
+    0 4px 12px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.communication-icon {
+  font-size: 20px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+  transition: all 0.3s ease;
+  position: relative;
+  z-index: 1;
+}
+
+.communication-btn:hover .communication-icon {
+  transform: scale(1.1);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
+}
+
+.communication-btn.active .communication-icon {
+  filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.6));
+}
+
+/* Анімація пульсації для активних станів */
+.communication-btn.active {
+  animation: communicationPulse 2s ease-in-out infinite;
+}
+
+@keyframes communicationPulse {
+  0%, 100% {
+    box-shadow:
+      0 0 16px rgba(251, 191, 36, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
+  50% {
+    box-shadow:
+      0 0 24px rgba(251, 191, 36, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  }
+}
+
+/* Адаптивність для мобільних пристроїв */
+@media (max-width: 768px) {
+  .communication-panel {
+    bottom: 16px;
+    right: 16px;
+    padding: 8px;
+    gap: 8px;
+  }
+  
+  .communication-btn {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .communication-icon {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .communication-panel {
+    bottom: 12px;
+    right: 12px;
+    padding: 6px;
+    gap: 6px;
+  }
+  
+  .communication-btn {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .communication-icon {
+    font-size: 14px;
+  }
+}
+
+/* Анімація появи при першому завантаженні */
+.communication-panel {
+  animation: slideInRight 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideInRight {
+  0% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
