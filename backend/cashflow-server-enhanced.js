@@ -62,6 +62,20 @@ app.use(
 );
 app.use(express.json());
 
+// Root endpoint
+app.get("/", (req, res) => {
+  res.json({
+    name: "Cash Flow Ukraine API",
+    version: "1.0.0",
+    status: "🚀 Server is running!",
+    endpoints: {
+      health: "/health",
+      api: "/api/games",
+      docs: "https://github.com/ShadowUser2022/Cash-Flow-Ukraine"
+    }
+  });
+});
+
 // Health check
 app.get("/health", (req, res) => {
   res.json({ status: "OK", timestamp: new Date().toISOString() });
