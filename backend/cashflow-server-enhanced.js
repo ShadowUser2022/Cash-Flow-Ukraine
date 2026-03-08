@@ -1077,8 +1077,8 @@ io.on("connection", (socket) => {
   });
 });
 
-// Start server
-server.listen(PORT, () => {
+// Start server - bind to 0.0.0.0 for Railway/Docker
+server.listen(PORT, '0.0.0.0', () => {
   console.log("🚀 Cash Flow Ukraine Server Enhanced Started!");
   console.log(`🎮 Server running on port ${PORT}`);
   console.log("📡 Socket.IO ready");
