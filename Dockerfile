@@ -15,12 +15,8 @@ RUN npm ci --only=production
 # Copy backend source
 COPY backend/ ./
 
-# Expose port (Railway встановить динамічно)
-EXPOSE ${PORT:-3001}
+# Expose port (Railway встановить динамічно через env var)
+EXPOSE 3001
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:${PORT:-3001}/health || exit 1
-
-# Start server
+# Start server (Railway's health check буде використовувати railway.json)
 CMD ["node", "cashflow-server-enhanced.js"]

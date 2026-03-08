@@ -4,6 +4,14 @@ const http = require("http");
 const { Server } = require("socket.io");
 const cors = require("cors");
 
+// 🔍 Debug logging for Railway
+console.log("🚀 Starting Cash Flow Ukraine Server...");
+console.log("📊 Environment:", {
+  NODE_ENV: process.env.NODE_ENV || "development",
+  PORT: process.env.PORT || 3001,
+  FRONTEND_URL: process.env.FRONTEND_URL || "not set",
+});
+
 // TypeScript integration
 const { register } = require("ts-node");
 register({
