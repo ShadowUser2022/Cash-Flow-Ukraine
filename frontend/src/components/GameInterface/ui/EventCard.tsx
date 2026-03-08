@@ -11,6 +11,7 @@ interface EventCardProps {
     description: string;
     action: string;
     value: number;
+    details?: string;
   } | null;
   show: boolean;
   onAction: (accept: boolean) => void;
@@ -26,6 +27,9 @@ const EventCard: React.FC<EventCardProps> = ({ card, show, onAction }) => {
       case 'income': return '#2196F3';      // синій
       case 'market': return '#FF9800';      // помаранчевий
       case 'deal': return '#9C27B0';        // фіолетовий
+      case 'loan': return '#795548';         // коричневий
+      case 'emergency': return '#E91E63';    // рожевий
+      case 'investment': return '#00BCD4';   // блакитний
       default: return '#607D8B';           // сірий
     }
   };
@@ -37,6 +41,9 @@ const EventCard: React.FC<EventCardProps> = ({ card, show, onAction }) => {
       case 'income': return '💼';
       case 'market': return '📈';
       case 'deal': return '🤝';
+      case 'loan': return '💰';
+      case 'emergency': return '🏥';
+      case 'investment': return '📊';
       default: return '📄';
     }
   };
@@ -53,6 +60,12 @@ const EventCard: React.FC<EventCardProps> = ({ card, show, onAction }) => {
         
         <div className="event-card-content">
           <p className="event-card-description">{card.description}</p>
+          
+          {card.details && (
+            <div className="event-card-details">
+              <small>{card.details}</small>
+            </div>
+          )}
           
           <div className="event-card-action">
             <span className="action-text">{card.action}</span>

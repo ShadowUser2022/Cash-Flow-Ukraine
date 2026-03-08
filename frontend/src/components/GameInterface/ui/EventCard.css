@@ -64,6 +64,18 @@
   opacity: 0.9;
 }
 
+.event-card-details {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 8px;
+  margin: 8px 0;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  white-space: pre-line;
+  line-height: 1.4;
+}
+
 .event-card-action {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 8px;

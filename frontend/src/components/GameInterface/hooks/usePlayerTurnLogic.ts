@@ -41,38 +41,67 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer }: UsePlayerT
     const eventCards = [
       {
         type: 'opportunity',
-        title: '🏠 Недвижимість',
+        title: '🏠 Недвижимость',
         description: 'Можливість купити квартиру з знижкою 20%',
         action: 'Купити за $80,000',
-        value: 80000
+        value: 80000,
+        details: 'Ринкова вартість: $100,000\nПотенційний дохід: $1,200/міс'
       },
       {
         type: 'expense',
         title: '🚗 Автомобиль',
         description: 'Необхідний ремонт автомобіля',
         action: 'Витратити $2,000',
-        value: -2000
+        value: -2000,
+        details: 'Терміновий ремонт\nВпливає на щомісячні витрати'
       },
       {
         type: 'income',
         title: '💼 Бонус',
         description: 'Ви отримали премію на роботі',
         action: 'Отримати $5,000',
-        value: 5000
+        value: 5000,
+        details: 'Щомісячний бонус\nДодається до пасивного доходу'
       },
       {
         type: 'market',
         title: '📈 Ринок',
         description: 'Фондовий ринок зріс на 10%',
         action: 'Дохід +$3,000',
-        value: 3000
+        value: 3000,
+        details: 'Інвестиційний дохід\nЗалежить від ринкових умов'
       },
       {
         type: 'deal',
         title: '🤝 Ділова пропозиція',
         description: 'Інвестор пропонує партнерство',
         action: 'Інвестувати $10,000',
-        value: 10000
+        value: 10000,
+        details: 'Мала угода\nОчікуваний дохід: $200/міс'
+      },
+      {
+        type: 'loan',
+        title: '💰 Кредит',
+        description: 'Банк пропонує кредит на бізнес',
+        action: 'Взяти кредит $15,000',
+        value: 15000,
+        details: 'Під 10% річних\nЩомісячний платіж: $1,250'
+      },
+      {
+        type: 'emergency',
+        title: '🏥 Несподіванка',
+        description: 'Медичні витрати терміново',
+        action: 'Витратити $3,500',
+        value: -3500,
+        details: 'Непередбачувані витрати\nВпливає на фінансовий потік'
+      },
+      {
+        type: 'investment',
+        title: '📊 Інвестиція',
+        description: 'Акції компанії зросли в ціні',
+        action: 'Продати акції +$7,000',
+        value: 7000,
+        details: 'Капітальний дохід\nПодаток: 15%'
       }
     ];
 
@@ -91,6 +120,10 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer }: UsePlayerT
     if (accept && currentEventCard) {
       // Оновлюємо фінанси гравця
       console.log(`💰 Фінансова операція: ${currentEventCard.value}`);
+      console.log(`📋 Деталі: ${currentEventCard.details}`);
+      
+      // Тут буде логіка оновлення фінансів гравця
+      // Наприклад: updatePlayerFinances(currentPlayer.id, currentEventCard.value)
     }
     
     // Закриваємо картку
@@ -99,6 +132,9 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer }: UsePlayerT
     
     // Передаємо хід наступному гравцю
     console.log('🔄 Хід завершено, передача ходу...');
+    
+    // Тут буде логіка передачі ходу
+    // Наприклад: passTurnToNextPlayer()
   };
 
   // handleDiceRollComplete: реальна логіка після кидка кубика

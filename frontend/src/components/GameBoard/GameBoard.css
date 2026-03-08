@@ -1,25 +1,35 @@
-/* ====================== RESPONSIVE BOARD LAYOUT ====================== */
+/* ====================== PERFECTLY CENTERED BOARD LAYOUT ====================== */
 
-/* Основний контейнер - займає весь доступний простір */
+/* Основний контейнер - ідеально центрований */
 .game-board {
-	width: 100%;
+	width: 100vw;
 	height: 100vh;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	padding: 20px;
+	padding: 0;
+	margin: 0;
 	box-sizing: border-box;
 	background: transparent;
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	overflow: hidden;
 }
 
-/* Адаптивна дошка */
+/* Адаптивна дошка - ідеально квадратна */
 .cashflow-board {
-	width: min(95vw, 95vh);
-	height: min(95vw, 95vh);
-	max-width: 1400px;
-	max-height: 1400px;
+	width: min(85vw, 85vh);
+	height: min(85vw, 85vh);
+	max-width: 1200px;
+	max-height: 1200px;
+	min-width: 600px;
+	min-height: 600px;
 	aspect-ratio: 1;
 	margin: 0 auto;
+	padding: 0;
 	background:
 		radial-gradient(circle at 30% 20%, rgba(124, 58, 237, 0.15) 0%, transparent 50%),
 		radial-gradient(circle at 70% 80%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
@@ -35,8 +45,6 @@
 	position: relative;
 	overflow: hidden;
 	backdrop-filter: blur(40px);
-	padding: 2%;
-	box-sizing: border-box;
 	display: flex;
 	flex-direction: column;
 }
@@ -58,19 +66,23 @@
 	-webkit-mask-composite: xor;
 }
 
-/* Сітка дошки - рівномірний розподіл */
+/* Сітка дошки - ідеально рівномірний розподіл */
 .board-grid {
 	display: grid;
 	grid-template-columns: repeat(6, 1fr);
 	grid-template-rows: repeat(6, 1fr);
-	gap: 8px;
+	gap: 12px;
 	width: 100%;
 	height: 100%;
 	position: relative;
+	padding: 20px;
+	box-sizing: border-box;
 }
 
-/* Центр з кубиком */
+/* Центр з кубиком - ідеально по центру */
 .board-center {
+	grid-column: 2 / 6;
+	grid-row: 2 / 6;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
@@ -175,19 +187,17 @@
 
 /* Адаптивність для планшетів */
 @media (max-width: 1024px) {
-	.game-board {
-		padding: 15px;
-	}
-	
 	.cashflow-board {
-		width: min(98vw, 98vh);
-		height: min(98vw, 98vh);
+		width: min(92vw, 92vh);
+		height: min(92vw, 92vh);
+		min-width: 500px;
+		min-height: 500px;
 		border-radius: 24px;
-		padding: 1.5%;
 	}
 	
 	.board-grid {
-		gap: 6px;
+		gap: 10px;
+		padding: 15px;
 	}
 	
 	.board-center {
@@ -203,21 +213,22 @@
 /* Адаптивність для телефонів */
 @media (max-width: 768px) {
 	.game-board {
-		padding: 10px;
-		height: 100vh;
+		padding: 0;
 	}
 	
 	.cashflow-board {
-		width: 100vw;
-		height: 100vh;
+		width: min(95vw, 95vh);
+		height: min(95vw, 95vh);
+		min-width: 400px;
+		min-height: 400px;
 		max-width: none;
 		max-height: none;
 		border-radius: 16px;
-		padding: 2%;
 	}
 	
 	.board-grid {
-		gap: 4px;
+		gap: 8px;
+		padding: 10px;
 	}
 	
 	.board-center {
@@ -237,17 +248,17 @@
 
 /* Адаптивність для малих телефонів */
 @media (max-width: 480px) {
-	.game-board {
-		padding: 5px;
-	}
-	
 	.cashflow-board {
+		width: 98vw;
+		height: 98vh;
+		min-width: 320px;
+		min-height: 320px;
 		border-radius: 12px;
-		padding: 1%;
 	}
 	
 	.board-grid {
-		gap: 2px;
+		gap: 6px;
+		padding: 8px;
 	}
 	
 	.board-center {
@@ -348,7 +359,6 @@
 	background: transparent;
 	border-radius: 16px;
 	padding: 20px;
-	position: relative;
 }
 
 .board-row {
@@ -368,7 +378,7 @@
 }
 
 .board-center {
-	flex: 1;
+	/* flex: 1;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
@@ -387,7 +397,7 @@
 		inset 0 -2px 8px rgba(0, 0, 0, 0.3),
 		0 12px 40px rgba(0, 0, 0, 0.4),
 		0 0 80px rgba(59, 130, 246, 0.1);
-	backdrop-filter: blur(16px);
+	backdrop-filter: blur(16px); */
 }
 
 .board-center::before {
