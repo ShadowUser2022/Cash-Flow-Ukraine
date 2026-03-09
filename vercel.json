@@ -1,21 +1,9 @@
 {
   "buildCommand": "cd frontend && npm install && npm run build",
   "outputDirectory": "frontend/dist",
-  "installCommand": "npm install -g pnpm && pnpm install --recursive",
+  "installCommand": "npm install",
   "env": {
-    "VITE_API_URL": "@vite-api-url"
-  },
-  "envs": {
-    "production": {
-      "env": {
-        "VITE_API_URL": "https://cash-flow-ukraine-production.up.railway.app"
-      }
-    },
-    "preview": {
-      "env": {
-        "VITE_API_URL": "http://localhost:3001"
-      }
-    }
+    "VITE_API_URL": "https://cash-flow-ukraine-production.up.railway.app"
   },
   "redirects": [
     {
