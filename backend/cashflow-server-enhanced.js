@@ -71,8 +71,8 @@ app.get("/", (req, res) => {
     endpoints: {
       health: "/health",
       api: "/api/games",
-      docs: "https://github.com/ShadowUser2022/Cash-Flow-Ukraine"
-    }
+      docs: "https://github.com/ShadowUser2022/Cash-Flow-Ukraine",
+    },
   });
 });
 
@@ -1100,7 +1100,7 @@ io.on("connection", (socket) => {
 });
 
 // Start server - bind to 0.0.0.0 for Railway/Docker
-server.listen(PORT, '0.0.0.0', () => {
+server.listen(PORT, "0.0.0.0", () => {
   console.log("🚀 Cash Flow Ukraine Server Enhanced Started!");
   console.log(`🎮 Server running on port ${PORT}`);
   console.log("📡 Socket.IO ready");
