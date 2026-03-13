@@ -1,10 +1,8 @@
 {
-  "buildCommand": "cd frontend && npm install && npm run build",
-  "outputDirectory": "frontend/dist",
+  "rootDirectory": "frontend",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
   "installCommand": "npm install",
-  "env": {
-    "VITE_API_URL": "https://cash-flow-ukraine-production.up.railway.app"
-  },
   "redirects": [
     {
       "source": "/(.*)",
