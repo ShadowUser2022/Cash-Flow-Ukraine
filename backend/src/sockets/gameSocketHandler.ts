@@ -356,6 +356,9 @@ export class GameSocketHandler {
 				// Зберігаємо змінений стан гри
 				await this.gameService.updateGame(gameId, game);
 
+				// Обов'язково відправляємо ВСІМ оновлений стан гри, щоб оновився баланс на UI клієнтів
+				this.io.to(gameId).emit(SOCKET_EVENTS.GAME_STATE, game);
+
 				// Відправляємо успішний результат
 				this.io.to(gameId).emit(SOCKET_EVENTS.DEAL_COMPLETED, {
 					playerId,
@@ -370,6 +373,7 @@ export class GameSocketHandler {
 					const newDeals = GameMechanicsService.generateDeals(game, 2);
 					await this.gameService.updateGame(gameId, game);
 					this.io.to(gameId).emit(SOCKET_EVENTS.NEW_DEALS, newDeals);
+					this.io.to(gameId).emit(SOCKET_EVENTS.GAME_STATE, game); // Оновлюємо ще раз після генерації нових карток
 				}
 			} else {
 				// Відправляємо помилку тільки гравцю
