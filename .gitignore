@@ -109,3 +109,14 @@ temp/
 
 # TernJS port file
 .tern-port
+
+# SSH Keys and Security Secrets
+*.pem
+*.key
+*.ppk
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+.ssh/
+
