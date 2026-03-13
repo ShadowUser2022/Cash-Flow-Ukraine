@@ -353,6 +353,9 @@ export class GameSocketHandler {
 				}
 				console.log(`✅ Sending DEAL_COMPLETED event for player ${playerId}`);
 
+				// Зберігаємо змінений стан гри
+				await this.gameService.updateGame(gameId, game);
+
 				// Відправляємо успішний результат
 				this.io.to(gameId).emit(SOCKET_EVENTS.DEAL_COMPLETED, {
 					playerId,

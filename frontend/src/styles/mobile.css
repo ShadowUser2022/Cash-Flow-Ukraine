@@ -69,12 +69,12 @@
   /* === АДАПТИВНИЙ TOP BAR === */
   
   .top-game-bar {
-    height: 70px;
-    padding: 0 1rem;
+    height: 50px;
+    padding: 0 0.5rem;
   }
   
   .game-title {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
   }
   
   .game-meta-compact {
@@ -84,9 +84,13 @@
   /* === ПОКРАЩЕНА BOARD AREA === */
   
   .board-container {
-    top: 70px;
-    height: calc(100vh - 70px);
-    padding: 0.5rem;
+    top: 50px;
+    height: calc(100vh - 50px);
+    padding: 0.25rem;
+  }
+
+  .game-interface.fullscreen-board {
+    padding-top: 50px;
   }
   
   /* === TOUCH GESTURES === */
