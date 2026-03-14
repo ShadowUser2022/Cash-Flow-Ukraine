@@ -85,20 +85,35 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setP
         // Якщо є ефект клітинки (наприклад, картка), показуємо її З ЗАТРИМКОЮ
         if (data.cellEffect.type === 'draw_card') {
           const card = data.cellEffect.data?.card;
+          const cardType = data.cellEffect.data?.cardType || card?.type || 'opportunity';
+          
           if (card) {
             setTimeout(() => {
               setCurrentEventCard({
                 id: card.id,
-                type: card.cardType || card.type || 'opportunity',
+                type: cardType,
                 title: card.title || 'Подія',
                 description: card.description || card.text || '',
-                action: (card.cardType === 'doodad' || card.type === 'doodad' || card.cardType === 'expense') ? 'Сплатити' : 'Прийняти',
+                action: (cardType === 'doodad' || cardType === 'lawsuit' || cardType === 'tax_audit' || cardType === 'divorce') ? 'Сплатити' : 'Прийняти',
                 value: card.cost || card.amount || card.value || 0,
                 details: card.description || card.text
               });
               setShowEventCard(true);
             }, 1500); // Затримка 1.5 сек, щоб анімація фішки почалася
           }
+        } else if (data.cellEffect.type === 'choose_charity') {
+          setTimeout(() => {
+            setCurrentEventCard({
+              id: 'charity_event',
+              type: 'charity',
+              title: 'Благодійність',
+              description: 'Ви можете пожертвувати 10% вашої зарплати на благодійність. Це дозволить вам кидати 1 або 2 кубики протягом наступних 3-х ходів.',
+              action: 'Пожертвувати',
+              value: (currentPlayer?.finances?.salary || 0) * 0.1,
+              details: 'Використовуйте 2 кубики для швидшого руху!'
+            });
+            setShowEventCard(true);
+          }, 1500);
         }
       }
     };

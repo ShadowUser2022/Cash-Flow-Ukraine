@@ -130,29 +130,13 @@ export class GameMechanicsService {
 		const position = player.isOnFastTrack ? player.fastTrackPosition : player.position;
 
 		if (player.isOnFastTrack) {
-			// Розкладка швидкої доріжки (16 клітинок)
-			const ftLayout = [
-				'cashflow_day', 'business', 'business', 'lawsuit', 
-				'business', 'cashflow_day', 'business', 'dream_check', 
-				'business', 'tax_audit', 'business', 'cashflow_day', 
-				'business', 'divorce', 'business', 'dream_check'
-			];
-			const cellType = ftLayout[position % ftLayout.length];
-			
-			if (cellType === 'cashflow_day') return undefined; // Обробляється в rollDiceAndMove -> executeTurn
-			
-			return CardService.generateCellEffect(cellType);
+			const cell = game.board.fastTrackCells[position];
+			if (!cell || cell.type === 'cashflow_day') return undefined;
+			return CardService.generateCellEffect(cell.type);
 		} else {
-			// Визначаємо тип клітинки на основі позиції для Rat Race (спрощена логіка)
-			const cellTypes = ['opportunity', 'market', 'doodad', 'charity', 'paycheck'];
-			const cellTypeIndex = position % cellTypes.length;
-			const cellType = cellTypes[cellTypeIndex];
-
-			if (cellType === 'paycheck') {
-				return undefined;
-			}
-
-			return CardService.generateCellEffect(cellType);
+			const cell = game.board.ratRaceCells[position];
+			if (!cell || cell.type === 'payday' || (cell.type as string) === 'paycheck') return undefined;
+			return CardService.generateCellEffect(cell.type);
 		}
 	}
 

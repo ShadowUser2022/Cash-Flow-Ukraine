@@ -123,7 +123,7 @@ export interface GameBoard {
 
 export interface BoardCell {
 	id: number;
-	type: 'opportunity' | 'market' | 'doodad' | 'charity' | 'dream' | 'cashflow_day' | 'business' | 'lawsuit' | 'divorce' | 'tax_audit';
+	type: 'opportunity' | 'market' | 'doodad' | 'charity' | 'dream' | 'cashflow_day' | 'business' | 'lawsuit' | 'divorce' | 'tax_audit' | 'payday' | 'baby' | 'downsize' | 'dream_check';
 	title?: string;
 	description?: string;
 	action?: string;

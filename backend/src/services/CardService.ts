@@ -8,7 +8,7 @@ export class CardService {
 	public static generateOpportunityCard(): Card & { dealData?: Deal } {
 		const opportunities = [
 			{
-				id: `opp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+				id: `opp_${Date.now()}_1`,
 				type: 'opportunity' as const,
 				category: 'real_estate',
 				title: '2-кімнатна квартира в центрі',
@@ -23,7 +23,7 @@ export class CardService {
 				},
 				isActive: true,
 				dealData: {
-					id: `deal_${Date.now()}_real_estate`,
+					id: `deal_${Date.now()}_re_1`,
 					type: 'small' as const,
 					category: 'real_estate',
 					title: '2-кімнатна квартира в центрі',
@@ -41,7 +41,7 @@ export class CardService {
 				}
 			},
 			{
-				id: `opp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+				id: `opp_${Date.now()}_2`,
 				type: 'opportunity' as const,
 				category: 'business',
 				title: 'Франшиза кав\'ярні',
@@ -56,7 +56,7 @@ export class CardService {
 				},
 				isActive: true,
 				dealData: {
-					id: `deal_${Date.now()}_business`,
+					id: `deal_${Date.now()}_bus_1`,
 					type: 'small' as const,
 					category: 'business',
 					title: 'Франшиза кав\'ярні',
@@ -72,36 +72,6 @@ export class CardService {
 					}],
 					isAvailable: true
 				}
-			},
-			{
-				id: `opp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-				type: 'opportunity' as const,
-				category: 'stocks',
-				title: 'Акції технологічної компанії',
-				description: 'Молода IT-компанія з великим потенціалом зростання. Ризиковано, але прибутково.',
-				cost: 20000,
-				cashFlow: 400,
-				requirement: {
-					type: 'profession' as const,
-					value: ['Інженер', 'Лікар'],
-					description: 'Тільки для професіоналів з технічним бекграундом'
-				},
-				isActive: true,
-				dealData: {
-					id: `deal_${Date.now()}_stocks`,
-					type: 'small' as const,
-					category: 'stocks',
-					title: 'Акції технологічної компанії',
-					description: 'Високоризикові акції з потенціалом зростання',
-					cost: 20000,
-					cashFlow: 400,
-					requirements: [{
-						type: 'profession' as const,
-						value: ['Інженер', 'Лікар'],
-						description: 'Професійні знання обов\'язкові'
-					}],
-					isAvailable: true
-				}
 			}
 		];
 
@@ -114,30 +84,12 @@ export class CardService {
 	public static generateMarketCard(): Card {
 		const marketCards = [
 			{
-				id: `market_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+				id: `market_${Date.now()}_1`,
 				type: 'market' as const,
 				category: 'boom',
 				title: 'Ринок нерухомості зростає!',
 				description: 'Ціни на нерухомість піднялися на 20%. Продайте свою нерухомість зараз або тримайте для подальшого зростання.',
-				benefit: 20, // 20% збільшення
-				isActive: true
-			},
-			{
-				id: `market_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-				type: 'market' as const,
-				category: 'crash',
-				title: 'Фондовий ринок впав',
-				description: 'Акції втратили 30% вартості. Чудова можливість купити дешево або час продавати зі збитками.',
-				benefit: -30, // 30% зменшення
-				isActive: true
-			},
-			{
-				id: `market_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-				type: 'market' as const,
-				category: 'opportunity',
-				title: 'Нова технологічна хвиля',
-				description: 'Штучний інтелект та блокчейн створюють нові можливості. Інвестуйте в майбутнє!',
-				benefit: 50, // Нові можливості
+				benefit: 20,
 				isActive: true
 			}
 		];
@@ -151,39 +103,12 @@ export class CardService {
 	public static generateDoodadCard(): Card {
 		const doodadCards = [
 			{
-				id: `doodad_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+				id: `doodad_${Date.now()}_1`,
 				type: 'doodad' as const,
 				category: 'impulse_buy',
 				title: 'Новий iPhone',
-				description: 'Не можете встояти перед новою моделлю iPhone. Ваші щомісячні витрати збільшуються.',
+				description: 'Не можете встояти перед новою моделлю iPhone. Витрати зростають.',
 				cost: 1200,
-				isActive: true
-			},
-			{
-				id: `doodad_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-				type: 'doodad' as const,
-				category: 'luxury',
-				title: 'Дорогий відпочинок',
-				description: 'Тиждень на Мальдівах коштував більше, ніж планували. Витрати на подорожі зросли.',
-				cost: 3500,
-				isActive: true
-			},
-			{
-				id: `doodad_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-				type: 'doodad' as const,
-				category: 'car',
-				title: 'Нова машина в кредит',
-				description: 'Купили нову машину в кредит. Щомісячні платежі та страхування збільшують витрати.',
-				cost: 500, // щомісячно
-				isActive: true
-			},
-			{
-				id: `doodad_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-				type: 'doodad' as const,
-				category: 'emergency',
-				title: 'Медичні витрати',
-				description: 'Несподівана хвороба призвела до великих медичних рахунків.',
-				cost: 2000,
 				isActive: true
 			}
 		];
@@ -197,17 +122,17 @@ export class CardService {
 	public static generateBusinessCard(): Card & { dealData?: Deal } {
 		const businesses = [
 			{
-				id: `bus_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+				id: `bus_ft_${Date.now()}_1`,
 				type: 'opportunity' as const,
 				category: 'business',
 				title: 'Мережа готелів "Карпатська зірка"',
-				description: 'Велика мережа готелів у курортній зоні. Потребує значних інвестицій, але приносить величезний пасивний дохід.',
+				description: 'Велика мережа готелів у курортній зоні.',
 				cost: 500000,
 				cashFlow: 15000,
 				downPayment: 100000,
 				isActive: true,
 				dealData: {
-					id: `deal_${Date.now()}_ft_business_1`,
+					id: `deal_ft_${Date.now()}_1`,
 					type: 'big' as const,
 					category: 'business',
 					title: 'Мережа готелів "Карпатська зірка"',
@@ -218,52 +143,23 @@ export class CardService {
 					cashFlow: 15000,
 					isAvailable: true
 				}
-			},
-			{
-				id: `bus_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-				type: 'opportunity' as const,
-				category: 'business',
-				title: 'Харчовий холдинг',
-				description: 'Об\u0027єднання заводів з переробки агропродукції. Стабільний бізнес на експорт.',
-				cost: 1000000,
-				cashFlow: 35000,
-				downPayment: 250000,
-				isActive: true,
-				dealData: {
-					id: `deal_${Date.now()}_ft_business_2`,
-					type: 'big' as const,
-					category: 'business',
-					title: 'Харчовий холдинг',
-					description: 'Агропромисловий бізнес',
-					cost: 1000000,
-					downPayment: 250000,
-					mortgage: 750000,
-					cashFlow: 35000,
-					isAvailable: true
-				}
 			}
 		];
 		return businesses[Math.floor(Math.random() * businesses.length)];
 	}
 
-	/**
-	 * Генерація карти судового позову (Lawsuit)
-	 */
 	public static generateLawsuitCard(): Card {
 		return {
 			id: `law_${Date.now()}`,
 			type: 'doodad' as const,
 			category: 'lawsuit',
 			title: 'Судовий позов',
-			description: 'На вас подали до суду через старий бізнес-контракт. Потрібно сплатити послуги адвокатів та компенсацію.',
+			description: 'На вас подали до суду. Потрібно сплатити послуги адвокатів.',
 			cost: 50000,
 			isActive: true
 		};
 	}
 
-	/**
-	 * Генерація карти розлучення (Divorce)
-	 */
 	public static generateDivorceCard(): Card {
 		return {
 			id: `div_${Date.now()}`,
@@ -271,21 +167,18 @@ export class CardService {
 			category: 'divorce',
 			title: 'Розлучення',
 			description: 'Суд постановив розділити активи. Ви втрачаєте 50% своєї поточної готівки.',
-			cost: 0, // Динамічно розраховується як 50% cash
+			cost: 0,
 			isActive: true
 		};
 	}
 
-	/**
-	 * Генерація карти податкової перевірки (Tax Audit)
-	 */
 	public static generateTaxAuditCard(): Card {
 		return {
 			id: `tax_${Date.now()}`,
 			type: 'doodad' as const,
 			category: 'tax_audit',
 			title: 'Податкова перевірка',
-			description: 'Виявлено неточності у звітності за минулі роки. Сплата штрафу.',
+			description: 'Виявлено неточності у звітності. Сплата штрафу.',
 			cost: 25000,
 			isActive: true
 		};
@@ -303,15 +196,16 @@ export class CardService {
 					type: 'draw_card',
 					data: {
 						cardType: cellType,
-						card: opportunityCard.dealData || {
-							id: opportunityCard.id,
+						card: {
+							id: opportunityCard.dealData?.id || opportunityCard.id,
 							type: cellType === 'business' ? 'big' : 'small',
 							category: opportunityCard.category,
 							title: opportunityCard.title,
 							description: opportunityCard.description,
-							cost: opportunityCard.cost || 0,
-							cashFlow: opportunityCard.cashFlow,
-							requirements: opportunityCard.requirement ? [opportunityCard.requirement] : [],
+							cost: opportunityCard.dealData?.downPayment || opportunityCard.cost || 0,
+							amount: opportunityCard.dealData?.downPayment || opportunityCard.cost || 0,
+							cashFlow: opportunityCard.cashFlow || opportunityCard.dealData?.cashFlow,
+							requirements: (opportunityCard.dealData?.requirements || (opportunityCard.requirement ? [opportunityCard.requirement] : [])) as any,
 							isAvailable: true
 						}
 					}
@@ -323,7 +217,16 @@ export class CardService {
 					type: 'draw_card',
 					data: {
 						cardType: 'market',
-						card: marketCard
+						card: {
+							id: marketCard.id,
+							type: 'market',
+							category: marketCard.category,
+							title: marketCard.title,
+							description: marketCard.description,
+							benefit: marketCard.benefit,
+							cost: 0,
+							isAvailable: true
+						}
 					}
 				};
 
@@ -341,7 +244,16 @@ export class CardService {
 					type: 'draw_card',
 					data: {
 						cardType: cellType,
-						card: doodadCard
+						card: {
+							id: doodadCard.id,
+							type: 'doodad',
+							category: doodadCard.category,
+							title: doodadCard.title,
+							description: doodadCard.description,
+							cost: doodadCard.cost || 0,
+							amount: doodadCard.cost || 0,
+							isAvailable: true
+						}
 					}
 				};
 
@@ -351,18 +263,8 @@ export class CardService {
 					data: {
 						options: [
 							{ type: 'skip', penalty: 2, description: 'Пропустити (штраф: -2 ходи)' },
-							{ type: 'pay_10', amount: 10, description: '10% від зарплати' },
-							{ type: 'pay_20', amount: 20, description: '20% від зарплати (додаткові переваги)' }
+							{ type: 'pay_10', amount: 10, description: '10% від зарплати' }
 						]
-					}
-				};
-
-			case 'dream':
-			case 'dream_check':
-				return {
-					type: 'dream_check',
-					data: {
-						message: 'Перевіряємо чи досягли ви своєї фінансової мрії...'
 					}
 				};
 
@@ -371,7 +273,15 @@ export class CardService {
 					type: 'draw_card',
 					data: {
 						cardType: 'opportunity',
-						card: this.generateOpportunityCard().dealData
+						card: {
+							id: `fallback_${Date.now()}`,
+							type: 'small',
+							category: 'other',
+							title: 'Подія',
+							description: 'Випадкова подія на вашому шляху.',
+							cost: 0,
+							isAvailable: true
+						}
 					}
 				};
 		}
