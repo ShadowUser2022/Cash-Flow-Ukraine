@@ -4,21 +4,21 @@ FROM node:18-alpine
 # Install curl для health check
 RUN apk add --no-cache curl
 
-WORKDIR /app
+WORKDIR /app/backend
 
-# Copy package files з backend
+# Copy package files
 COPY backend/package*.json ./
 
 # Install dependencies
-RUN npm ci
+RUN npm install
 
-# Copy shared source
-COPY shared/ /shared/
+# Copy shared source to its sibling location
+COPY shared/ /app/shared/
 
 # Copy backend source
 COPY backend/ ./
 
-# Expose port (Railway встановить динамічно через env var)
+# Expose port
 EXPOSE 3001
 
 # Start server
