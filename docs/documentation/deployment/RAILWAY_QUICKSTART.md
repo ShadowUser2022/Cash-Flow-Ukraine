@@ -46,9 +46,9 @@ git push origin main
 
 **Settings → Service Settings:**
 
-- **Root Directory:** `backend`
-- **Builder:** Nixpacks (автоматично)
-- **Start Command:** `npm start` (Railway візьме з package.json)
+- **Root Directory:** залишити **порожнім** (корінь репо) — Dockerfile в корені потребує доступ до `backend/` та `shared/`
+- **Builder:** DOCKERFILE (у корені є `railway.json` + `Dockerfile`)
+- **Start Command:** задається в `railway.json` (`node cashflow-server-enhanced.js`)
 
 **Environment Variables:**
 

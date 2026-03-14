@@ -12,10 +12,10 @@
 
 ### 1.1 Перевірте файли
 
-✅ Файли для деплою backend:
+✅ Файли для деплою backend (деплой з **кореня** репо):
 
-- `backend/Dockerfile` - є
-- `backend/railway.json` - є
+- `railway.json` (корінь) — builder: DOCKERFILE, startCommand для backend
+- `Dockerfile` (корінь) — копіює `backend/` та `shared/`
 - `backend/package.json` - є
 - `backend/cashflow-server-enhanced.js` - оновлено для production
 
@@ -25,7 +25,7 @@
 2. Натисніть **"New Project"**
 3. Виберіть **"Deploy from GitHub repo"**
 4. Виберіть ваш репозиторій `Cash Flow Ukr`
-5. Railway автоматично знайде Dockerfile
+5. Railway автоматично знайде **кореневий** Dockerfile (не вказуйте Root Directory = `backend` — тоді не буде доступу до `shared/`)
 
 ### 1.3 Налаштуйте змінні оточення
 
@@ -39,9 +39,9 @@ FRONTEND_URL=https://your-frontend-url.netlify.app
 
 ⚠️ **ВАЖЛИВО**: `PORT` Railway встановить автоматично, але ми маємо fallback.
 
-### 1.4 Вкажіть Root Directory
+### 1.4 Root Directory
 
-Railway → Settings → **Root Directory**: `backend`
+Railway → Settings → **Root Directory**: залишити **порожнім** (корінь репо). У корені є `railway.json` і `Dockerfile`, які копіюють `backend/` та `shared/` — це потрібно для роботи backend.
 
 ### 1.5 Deploy!
 
