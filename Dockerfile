@@ -12,6 +12,9 @@ COPY backend/package*.json ./
 # Install dependencies
 RUN npm ci --only=production
 
+# Copy shared source
+COPY shared/ ../shared/
+
 # Copy backend source
 COPY backend/ ./
 

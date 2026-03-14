@@ -1,6 +1,7 @@
-# Ігноруємо все окрім backend
+# Ігноруємо все окрім backend та shared
 *
 !backend/
+!shared/
 
 # Але ігноруємо в backend
 backend/node_modules
