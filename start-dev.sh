@@ -47,7 +47,7 @@ cd ..
 
 echo ""
 echo "🎉 Development servers started successfully!"
-echo "📱 Frontend: http://localhost:5173"
+echo "📱 Frontend: https://localhost:5173"
 echo "🔧 Backend:  http://localhost:3001"
 echo ""
 echo "Backend PID: $BACKEND_PID"

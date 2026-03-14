@@ -160,30 +160,7 @@
 	text-align: center;
 }
 
-/* Розміщення клітинок по периметру */
-.board-cell:nth-child(1) { grid-column: 1; grid-row: 1; }
-.board-cell:nth-child(2) { grid-column: 2; grid-row: 1; }
-.board-cell:nth-child(3) { grid-column: 3; grid-row: 1; }
-.board-cell:nth-child(4) { grid-column: 4; grid-row: 1; }
-.board-cell:nth-child(5) { grid-column: 5; grid-row: 1; }
-.board-cell:nth-child(6) { grid-column: 6; grid-row: 1; }
-
-.board-cell:nth-child(7) { grid-column: 6; grid-row: 2; }
-.board-cell:nth-child(8) { grid-column: 6; grid-row: 3; }
-.board-cell:nth-child(9) { grid-column: 6; grid-row: 4; }
-.board-cell:nth-child(10) { grid-column: 6; grid-row: 5; }
-
-.board-cell:nth-child(11) { grid-column: 6; grid-row: 6; }
-.board-cell:nth-child(12) { grid-column: 5; grid-row: 6; }
-.board-cell:nth-child(13) { grid-column: 4; grid-row: 6; }
-.board-cell:nth-child(14) { grid-column: 3; grid-row: 6; }
-.board-cell:nth-child(15) { grid-column: 2; grid-row: 6; }
-.board-cell:nth-child(16) { grid-column: 1; grid-row: 6; }
-
-.board-cell:nth-child(17) { grid-column: 1; grid-row: 5; }
-.board-cell:nth-child(18) { grid-column: 1; grid-row: 4; }
-.board-cell:nth-child(19) { grid-column: 1; grid-row: 3; }
-.board-cell:nth-child(20) { grid-column: 1; grid-row: 2; }
+/* Динамічне розміщення клітинок за допомогою інлайнових стилів */
 
 /* Адаптивність для планшетів */
 @media (max-width: 1024px) {
@@ -444,8 +421,8 @@
 }
 
 .board-cell {
-	width: 85px;
-	height: 110px;
+	width: 100%;
+	height: 100%;
 	background:
 		linear-gradient(135deg, rgba(30, 41, 59, 0.98) 0%, rgba(51, 65, 85, 0.98) 100%);
 	border: 1.5px solid rgba(147, 197, 253, 0.2);

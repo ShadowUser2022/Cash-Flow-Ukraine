@@ -19,7 +19,6 @@ applyTo: "**"
 ### 🔑 Ключові принципи (НІКОЛИ НЕ ПОРУШУВАТИ):
 
 1. **Два кола гри (як у оригіналі Cashflow)**:
-
    - 🐭 **Rat Race** (Щуряча гонка) - 24 клітинки
    - 🚀 **Fast Track** (Швидка доріжка) - 16 клітинок
 
@@ -247,17 +246,24 @@ GameInterface
 
 ### 🎯 Пріоритет документів:
 
-1. **DEVELOPMENT_STRATEGY.md** - ЄДИНЕ ДЖЕРЕЛО ІСТИНИ
-2. **GAME_RULES_AND_MECHANICS.md** - Повні правила гри
-3. **shared/constants/gameConstants.ts** - Всі числові константи
-4. **DEVELOPER_CHECKLIST.md** - Процедури розробки
+1. **docs/project-management/ROADMAP.md** - ЄДИНИЙ ROADMAP ПРОЕКТУ
+2. **DEVELOPMENT_STRATEGY.md** - Технічна стратегія та архітектура
+3. **GAME_RULES_AND_MECHANICS.md** - Повні правила гри
+4. **shared/constants/gameConstants.ts** - Всі числові константи
+5. **DEVELOPER_CHECKLIST.md** - Процедури розробки
 
 ### 📚 Коли використовувати:
 
+- **Поточний стан та плани** → ROADMAP.md
 - **Будь-які зміни в механіці** → DEVELOPMENT_STRATEGY.md
 - **Питання про правила гри** → GAME_RULES_AND_MECHANICS.md
 - **Числові значення** → gameConstants.ts
 - **Процедури розробки** → DEVELOPER_CHECKLIST.md
+
+### 📁 Архів завершених документів:
+
+- **Папка:** `docs/archive/Виконано/`
+- **Містить:** Старі roadmap'и та звіти про завершення
 
 ---
 

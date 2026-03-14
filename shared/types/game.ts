@@ -13,6 +13,16 @@ export interface Player {
 	isReady: boolean;
 	isConnected: boolean;
 	avatar?: string;
+	dream?: Dream;
+}
+
+export interface Dream {
+	id: string;
+	title: string;
+	description: string;
+	icon: string;
+	category: 'luxury' | 'travel' | 'business' | 'charity' | 'freedom';
+	estimatedCost: number;
 }
 
 export interface Profession {
@@ -113,7 +123,7 @@ export interface GameBoard {
 
 export interface BoardCell {
 	id: number;
-	type: 'opportunity' | 'market' | 'doodad' | 'charity' | 'dream';
+	type: 'opportunity' | 'market' | 'doodad' | 'charity' | 'dream' | 'cashflow_day' | 'business' | 'lawsuit' | 'divorce' | 'tax_audit';
 	title?: string;
 	description?: string;
 	action?: string;
@@ -260,7 +270,7 @@ export interface ServerToClientEvents {
 	'player-not-ready': (data: { playerId: string; isReady: boolean }) => void;
 	'profession-selected': (data: { playerId: string; profession: string; playerName: string }) => void;
 	'game-starting': () => void;
-	'game-started': (data: { gameState: Game }) => void;
+	'game-started': (data: { gameId: string; gameState?: Game }) => void;
 	'player-removed': (data: { playerId: string; playerName: string }) => void;
 
 	// Chat events
@@ -283,6 +293,7 @@ export interface ClientToServerEvents {
 	'propose-negotiation': (data: { gameId: string; proposerId: string; targetId: string; proposal: NegotiationProposal }) => void;
 	'respond-negotiation': (data: { gameId: string; negotiationId: string; playerId: string; response: 'accept' | 'reject' | 'counter'; counterProposal?: NegotiationProposal }) => void;
 	'ready-to-start': (data: { gameId: string; playerId: string }) => void;
+	'game-started': (data: { gameId: string }) => void;
 
 	// New game mechanics events
 	'execute-turn': (data: { gameId: string; playerId: string }) => void;
@@ -322,7 +333,7 @@ export const PROFESSIONS: Profession[] = [
 
 export const BOARD_CELLS = {
 	RAT_RACE: 24,
-	FAST_TRACK: 8
+	FAST_TRACK: 16
 };
 
 export const GAME_CONFIG = {

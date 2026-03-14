@@ -29,6 +29,11 @@ register({
 const app = express();
 const server = http.createServer(app);
 
+// Import TypeScript services
+const GameMechanicsService = require('./src/services/GameMechanicsService.ts').GameMechanicsService;
+const CardService = require('./src/services/CardService.ts').CardService;
+const TransactionService = require('./src/services/transactionService.ts').default;
+
 // ✅ Dynamic CORS for production and development
 const allowedOrigins =
   process.env.NODE_ENV === "production"
@@ -97,7 +102,7 @@ app.get("/api/games", (req, res) => {
 // ✅ Додаємо правильний endpoint для створення гри
 app.post("/api/games/create", (req, res) => {
   console.log("🎮 Creating new game with request:", req.body);
-  const { hostId } = req.body;
+  const { hostId, settings } = req.body;
 
   if (!hostId) {
     return res.status(400).json({
@@ -116,11 +121,11 @@ app.post("/api/games/create", (req, res) => {
     turn: 0,
     players: [],
     settings: {
-      maxPlayers: 6,
-      timeLimit: 3600,
-      language: "uk",
-      allowSpectators: false,
-      difficulty: "normal",
+      maxPlayers: settings?.maxPlayers || 6,
+      timeLimit: settings?.timeLimit || 3600,
+      language: settings?.language || "uk",
+      allowSpectators: settings?.allowSpectators || false,
+      difficulty: settings?.difficulty || "normal",
     },
     board: {
       ratRaceCells: [],
@@ -132,6 +137,9 @@ app.post("/api/games/create", (req, res) => {
     createdAt: new Date(),
     updatedAt: new Date(),
   };
+
+  // ✅ Initialize board layout
+  GameMechanicsService.initializeBoard(gameData);
 
   // ✅ Store game in memory
   gameStore.set(gameId, gameData);
@@ -179,6 +187,7 @@ app.post("/api/games/:gameId/join", (req, res) => {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
+    GameMechanicsService.initializeBoard(game);
     gameStore.set(gameId, game);
   }
 
@@ -439,8 +448,17 @@ const playerFinances = new Map();
 // In-memory store для мрій гравців
 const playerDreams = new Map();
 
-// Функція для ініціалізації фінансів гравця
-function initializePlayerFinances(playerId) {
+// Функція для отримання фінансів гравця
+function getPlayerFinances(playerId, gameId) {
+  if (gameId) {
+    const game = gameStore.get(gameId);
+    if (game) {
+      const player = game.players.find(p => p.id === playerId);
+      if (player) return player.finances;
+    }
+  }
+  
+  // Fallback to in-memory store for back-compat
   if (!playerFinances.has(playerId)) {
     playerFinances.set(playerId, {
       cash: 8000,
@@ -468,10 +486,9 @@ function initializePlayerFinances(playerId) {
   }
   return playerFinances.get(playerId);
 }
-
 // Функція для оновлення готівки гравця
 function updatePlayerCash(playerId, amount, type, description, gameId = null) {
-  const finances = initializePlayerFinances(playerId);
+  const finances = getPlayerFinances(playerId, gameId);
   const oldCash = finances.cash;
 
   // Оновлюємо готівку (не може бути менше 0)
@@ -506,6 +523,8 @@ function updatePlayerCash(playerId, amount, type, description, gameId = null) {
         console.log(
           `✅ Synced cash to game state: Player ${playerId} now has $${finances.cash}`,
         );
+        // Додатковий лог для користувача (для консолі сервера)
+        console.log(`📊 [STATE UPDATE] Player ${playerId} Balance: $${finances.cash}`);
       }
     }
   }
@@ -521,11 +540,6 @@ function emitGameState(gameId) {
     io.of("/game").to(gameId).emit("game-state", game);
     console.log(`📡 Emitted updated game state to game ${gameId}`);
   }
-}
-
-// Функція для отримання фінансів гравця
-function getPlayerFinances(playerId) {
-  return initializePlayerFinances(playerId);
 }
 
 // Функції для управління мріями гравців
@@ -611,7 +625,21 @@ gameNamespace.on("connection", (socket) => {
         createdAt: new Date(),
         updatedAt: new Date(),
       };
+      GameMechanicsService.initializeBoard(gameData);
+      
+      // ✅ Встановлюємо поточного гравця (перший хто зайшов)
+      if (!gameData.currentPlayer && gameData.players.length > 0) {
+        gameData.currentPlayer = gameData.players[0].id;
+        console.log(`👤 Set initial currentPlayer to ${gameData.currentPlayer}`);
+      }
+      
       gameStore.set(gameId, gameData);
+    } else {
+      // Якщо гра вже існує, але currentPlayer не встановлено
+      if (!gameData.currentPlayer && gameData.players.length > 0) {
+        gameData.currentPlayer = gameData.players[0].id;
+        console.log(`👤 Assigned currentPlayer ${gameData.currentPlayer} to existing game`);
+      }
     }
 
     // ✅ Send game state to the joined player
@@ -640,8 +668,27 @@ gameNamespace.on("connection", (socket) => {
   });
 
   socket.on("game-started", ({ gameId }) => {
-    console.log(`Game ${gameId} started`);
-    gameNamespace.to(gameId).emit("game-started", { gameId });
+    console.log(`🚀 Game ${gameId} starting...`);
+    const game = gameStore.get(gameId);
+    if (game) {
+      game.state = "in_progress";
+      game.updatedAt = new Date();
+      
+      // ✅ Гарантуємо що є поточний гравець при старті
+      if (!game.currentPlayer && game.players.length > 0) {
+        game.currentPlayer = game.players[0].id;
+      }
+      
+      gameStore.set(gameId, game);
+      gameNamespace.to(gameId).emit("game-started", { gameId, gameState: game });
+      
+      // Також емітимо загальний стан для синхронізації
+      gameNamespace.to(gameId).emit("game-state", game);
+      
+      console.log(`✅ Game ${gameId} state changed to in_progress. Current: ${game.currentPlayer}`);
+    } else {
+      gameNamespace.to(gameId).emit("game-started", { gameId });
+    }
   });
 
   socket.on("roll-dice", ({ gameId, playerId }) => {
@@ -651,81 +698,54 @@ gameNamespace.on("connection", (socket) => {
     gameNamespace.to(gameId).emit("dice-rolled", { playerId, diceResult });
   });
 
-  // Обробка повного ходу (з актуальними фінансами)
-  socket.on("execute-turn", ({ gameId, playerId }) => {
-    console.log(
-      `🎯 Executing full turn for player ${playerId} in game ${gameId}`,
-    );
+  // Обробка повного ходу (з використанням реальної механіки)
+  socket.on("execute-turn", async ({ gameId, playerId }) => {
+    console.log(`🎯 Executing real turn for player ${playerId} in game ${gameId}`);
 
     try {
-      // 1. Кидаємо кубик
-      const diceResult = Math.floor(Math.random() * 6) + 1;
-
-      // 2. Отримуємо актуальні фінанси гравця
-      const currentFinances = getPlayerFinances(playerId);
-
-      // 3. Симулюємо нову позицію (базовий розрахунок)
-      const currentPosition = 0; // TODO: отримати з gameState
-      const newPosition = (currentPosition + diceResult) % 24;
-
-      // 4. Формуємо mock gameState з актуальними фінансами
-      const mockGameState = {
-        id: gameId,
-        players: [
-          {
-            id: playerId,
-            name: `Player ${playerId}`,
-            position: newPosition,
-            finances: {
-              cash: currentFinances.cash,
-              salary: currentFinances.salary,
-              passiveIncome: currentFinances.passiveIncome,
-              expenses: currentFinances.expenses,
-              assets: currentFinances.assets,
-              liabilities: currentFinances.liabilities,
-            },
-          },
-        ],
-        currentPlayer: playerId,
-        turn: 1,
-        state: "in_progress",
-      };
-
-      // 5. Симулюємо ефект клітинки (30% шанс)
-      let cellEffect = null;
-      if (Math.random() > 0.7) {
-        const effects = [
-          {
-            type: "pay_money",
-            data: {
-              amount: 500,
-              description: "Штраф за перевищення швидкості",
-            },
-          },
-          {
-            type: "receive_money",
-            data: { amount: 300, description: "Бонус від роботи" },
-          },
-          {
-            type: "choose_charity",
-            data: { description: "Допоможіть благодійній організації" },
-          },
-        ];
-        cellEffect = effects[Math.floor(Math.random() * effects.length)];
+      // 1. Отримуємо актуальну гру з gameStore
+      const game = gameStore.get(gameId);
+      if (!game) {
+        throw new Error("Гра не знайдена в пам'яті");
       }
 
-      console.log(
-        `🎲 Dice result: ${diceResult}, Position: ${currentPosition} → ${newPosition}, Cash: $${currentFinances.cash}`,
-      );
+      // 2. Виконуємо хід через сервіс механіки
+      // Оскільки ми рефакторили TransactionService для роботи з об'єктами в пам'яті,
+      // це оновить об'єкт game.players[index] напряму.
+      const turnResult = await GameMechanicsService.executeTurn(game, playerId);
 
-      // 6. Відправляємо dice-rolled з актуальними даними
+      // 3. Знаходимо нову позицію для емітування dice-rolled (для зворотної сумісності)
+      const moveAction = turnResult.actions.find(a => a.type === 'move' && a.data?.diceRoll);
+      const diceResult = moveAction?.data?.diceRoll || 1;
+      const newPosition = moveAction?.data?.newPosition || 0;
+      
+      // Знаходимо ефект клітинки
+      const cellAction = turnResult.actions.find(a => a.type === 'draw_card');
+      const cellEffect = cellAction ? {
+        type: cellAction.result?.effectType,
+        data: cellAction.data
+      } : null;
+
+      console.log(`🎲 Turn Result: Dice ${diceResult}, Pos ${newPosition}, Actions: ${turnResult.actions.length}`);
+
+      // 4. Оновлюємо updatedAt та зберігаємо в Map (хоча об'єкт вже змінено по посиланню)
+      game.updatedAt = new Date();
+      game.turn += 1; // Збільшуємо загальний лічильник ходів гри
+      gameStore.set(gameId, game);
+
+      // 5. Відправляємо dice-rolled для анімації на фронтенді
       gameNamespace.to(gameId).emit("dice-rolled", {
         playerId,
         diceResult,
         newPosition,
         cellEffect,
-        gameState: mockGameState,
+        gameState: game, // Відправляємо ПОВНИЙ актуальний стан гри
+        turnResult
       });
+
+      // 6. Додатково емітимо загальний game-state
+      emitGameState(gameId);
+
     } catch (error) {
       console.error(`❌ Error executing turn for ${playerId}:`, error);
       socket.emit("error", {
@@ -795,6 +815,41 @@ gameNamespace.on("connection", (socket) => {
         message: "Помилка обробки платежу",
         playerId,
       });
+    }
+  });
+
+  // Обробка купівлі угоди
+  socket.on("buy-deal", async ({ gameId, playerId, dealId }) => {
+    console.log(`🏠 Player ${playerId} buying deal ${dealId} in game ${gameId}`);
+    
+    try {
+      const game = gameStore.get(gameId);
+      if (!game) throw new Error("Game not found");
+      
+      const result = await GameMechanicsService.buyDeal(game, playerId, dealId);
+      
+      if (result.success) {
+        gameNamespace.to(gameId).emit("deal-completed", {
+          playerId,
+          dealId,
+          success: true,
+          message: result.message,
+          newCashBalance: game.players.find(p => p.id === playerId).finances.cash
+        });
+        
+        const player = game.players.find(p => p.id === playerId);
+        gameNamespace.to(gameId).emit("player-finances-updated", {
+          playerId,
+          finances: player.finances
+        });
+        
+        emitGameState(gameId);
+      } else {
+        socket.emit("error", { message: result.message });
+      }
+    } catch (error) {
+      console.error("Error processing buy-deal:", error);
+      socket.emit("error", { message: "Помилка при купівлі угоди" });
     }
   });
 
@@ -1020,7 +1075,22 @@ gameNamespace.on("connection", (socket) => {
     try {
       const savedDream = setPlayerDream(playerId, dream);
 
-      // Повідомляємо всіх гравців про встановлення мрії
+      // ✅ КРИТИЧНО: Синхронізуємо з game state в gameStore
+      const game = gameStore.get(gameId);
+      if (game) {
+        const playerIndex = game.players.findIndex((p) => p.id === playerId);
+        if (playerIndex !== -1) {
+          game.players[playerIndex].dream = savedDream;
+          game.updatedAt = new Date().toISOString();
+          gameStore.set(gameId, game);
+          console.log(`✅ Synced dream to game state for player ${playerId}`);
+          
+          // Емітуємо оновлений стан всім гравцям
+          io.to(gameId).emit("game-state", game);
+        }
+      }
+
+      // Повідомляємо всіх гравців про встановлення мрії (для анімацій/тостів)
       io.to(gameId).emit("player-dream-set", {
         playerId,
         dream: savedDream,

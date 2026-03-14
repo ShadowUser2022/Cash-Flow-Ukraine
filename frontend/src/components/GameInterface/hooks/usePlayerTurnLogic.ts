@@ -1,159 +1,280 @@
-// usePlayerTurnLogic.ts
-// Логіка визначення ходу, кидка кубика, руху фішки
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Player, Game } from '../../../types/game';
+import { socketService } from '../../../services/socketService';
+import useGameStore from '../../../store/gameStore';
 
 interface UsePlayerTurnLogicProps {
   game: Game | null;
   playerId: string;
   currentPlayer: Player | null;
+  toasts: {
+    success: (title: string, msg: string) => void;
+    info: (title: string, msg: string) => void;
+    error: (title: string, msg: string) => void;
+    transactionToast: (type: 'income' | 'expense', amount: number, desc: string) => void;
+  };
+  setPlayerMovement?: (movement: any) => void;
 }
 
-export function usePlayerTurnLogic({ game, playerId, currentPlayer }: UsePlayerTurnLogicProps) {
+export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setPlayerMovement }: UsePlayerTurnLogicProps) {
   // isMyTurn: чи зараз хід цього гравця
   const isMyTurn = !!game && !!currentPlayer && game.currentPlayer === playerId;
 
-  // canMoveToFastTrack: приклад stub-логіки (реалізувати за потреби)
-  const canMoveToFastTrack = false;
+  // canMoveToFastTrack: реальна перевірка буде на основі стану гравця
+  const canMoveToFastTrack = currentPlayer?.finances 
+    ? (currentPlayer.finances.passiveIncome >= currentPlayer.finances.expenses) 
+    : false;
+
+  const isOffline = game?.id === 'DEV-MODE' || game?.id === 'OFFLINE-MODE';
 
   // Стан для картки події
   const [currentEventCard, setCurrentEventCard] = useState<any>(null);
   const [showEventCard, setShowEventCard] = useState(false);
 
-  // handleExecuteTurn: реальна логіка ходу
+  // Ефект для прослуховування результатів ходу через сокети
+  useEffect(() => {
+    if (!socketService.isGameConnected) return;
+
+    const handleDiceRolled = (data: any) => {
+      console.log('📡 Received dice-rolled event:', data);
+      
+      const { setGame, setCurrentPlayer } = useGameStore.getState();
+      
+      // Знаходимо старе положення гравця перед оновленням
+      const currentGame = useGameStore.getState().game;
+      const oldPlayer = currentGame?.players.find((p: any) => p.id === data.playerId);
+      const oldPosition = oldPlayer?.position || 0;
+
+      // Оновлюємо глобальний стан гри якщо він прийшов
+      if (data.gameState) {
+        setGame(data.gameState);
+        
+        // Оновлюємо поточного гравця для UI
+        const updatedPlayer = data.gameState.players.find((p: any) => p.id === playerId);
+        if (updatedPlayer) {
+          setCurrentPlayer(updatedPlayer);
+        }
+      }
+
+      // Відображаємо "дзень" (тост) про результат кидка
+      if (data.playerId === playerId) {
+        toasts.info('Кубик кинуто!', `Ви викинули ${data.diceResult}`);
+        
+        // ЗАПУСКАЄМО АНІМАЦІЮ РУХУ
+        if (setPlayerMovement) {
+          setPlayerMovement({
+            playerId: data.playerId,
+            fromPosition: oldPosition,
+            toPosition: data.newPosition,
+            isAnimating: true
+          });
+
+          // Скидаємо прапор анімації через 2 секунди
+          setTimeout(() => {
+            setPlayerMovement({
+              playerId: data.playerId,
+              fromPosition: data.newPosition,
+              toPosition: data.newPosition,
+              isAnimating: false
+            });
+          }, 2000);
+        }
+      }
+      
+      if (data.playerId === playerId && data.cellEffect) {
+        // Якщо є ефект клітинки (наприклад, картка), показуємо її З ЗАТРИМКОЮ
+        if (data.cellEffect.type === 'draw_card') {
+          const card = data.cellEffect.data?.card;
+          if (card) {
+            setTimeout(() => {
+              setCurrentEventCard({
+                id: card.id,
+                type: card.cardType || card.type || 'opportunity',
+                title: card.title || 'Подія',
+                description: card.description || card.text || '',
+                action: (card.cardType === 'doodad' || card.type === 'doodad' || card.cardType === 'expense') ? 'Сплатити' : 'Прийняти',
+                value: card.cost || card.amount || card.value || 0,
+                details: card.description || card.text
+              });
+              setShowEventCard(true);
+            }, 1500); // Затримка 1.5 сек, щоб анімація фішки почалася
+          }
+        }
+      }
+    };
+
+    socketService.onGameEvent('dice-rolled', handleDiceRolled);
+    return () => {
+      socketService.offGameEvent('dice-rolled', handleDiceRolled);
+    };
+  }, [playerId]);
+
+  // handleExecuteTurn: запуск ходу через бекенд
   const handleExecuteTurn = () => {
-    console.log('🎮 Виконання ходу...');
+    if (isOffline) {
+      console.log('🧪 Offline mode: skip socket execute-turn, logic handled in handleDiceRollComplete');
+      return;
+    }
     
-    if (!game || !currentPlayer) {
+    console.log('🎮 Запуск виконання ходу через сокет...');
+    
+    if (!game || !playerId) {
       console.warn('Гра або гравець не доступні');
       return;
     }
 
-    // Симулюємо рух гравця та показуємо картку події
-    setTimeout(() => {
-      showRandomEventCard();
-    }, 500);
-  };
-
-  // Показати випадкову картку події
-  const showRandomEventCard = () => {
-    const eventCards = [
-      {
-        type: 'opportunity',
-        title: '🏠 Недвижимость',
-        description: 'Можливість купити квартиру з знижкою 20%',
-        action: 'Купити за $80,000',
-        value: 80000,
-        details: 'Ринкова вартість: $100,000\nПотенційний дохід: $1,200/міс'
-      },
-      {
-        type: 'expense',
-        title: '🚗 Автомобиль',
-        description: 'Необхідний ремонт автомобіля',
-        action: 'Витратити $2,000',
-        value: -2000,
-        details: 'Терміновий ремонт\nВпливає на щомісячні витрати'
-      },
-      {
-        type: 'income',
-        title: '💼 Бонус',
-        description: 'Ви отримали премію на роботі',
-        action: 'Отримати $5,000',
-        value: 5000,
-        details: 'Щомісячний бонус\nДодається до пасивного доходу'
-      },
-      {
-        type: 'market',
-        title: '📈 Ринок',
-        description: 'Фондовий ринок зріс на 10%',
-        action: 'Дохід +$3,000',
-        value: 3000,
-        details: 'Інвестиційний дохід\nЗалежить від ринкових умов'
-      },
-      {
-        type: 'deal',
-        title: '🤝 Ділова пропозиція',
-        description: 'Інвестор пропонує партнерство',
-        action: 'Інвестувати $10,000',
-        value: 10000,
-        details: 'Мала угода\nОчікуваний дохід: $200/міс'
-      },
-      {
-        type: 'loan',
-        title: '💰 Кредит',
-        description: 'Банк пропонує кредит на бізнес',
-        action: 'Взяти кредит $15,000',
-        value: 15000,
-        details: 'Під 10% річних\nЩомісячний платіж: $1,250'
-      },
-      {
-        type: 'emergency',
-        title: '🏥 Несподіванка',
-        description: 'Медичні витрати терміново',
-        action: 'Витратити $3,500',
-        value: -3500,
-        details: 'Непередбачувані витрати\nВпливає на фінансовий потік'
-      },
-      {
-        type: 'investment',
-        title: '📊 Інвестиція',
-        description: 'Акції компанії зросли в ціні',
-        action: 'Продати акції +$7,000',
-        value: 7000,
-        details: 'Капітальний дохід\nПодаток: 15%'
-      }
-    ];
-
-    const randomCard = eventCards[Math.floor(Math.random() * eventCards.length)];
-    
-    console.log('🃏 Показуємо картку події:', randomCard.title);
-    
-    setCurrentEventCard(randomCard);
-    setShowEventCard(true);
+    try {
+      socketService.executeTurn(game.id, playerId);
+      console.log('✅ Сигнал execute-turn відправлено');
+    } catch (err) {
+      console.error('💥 Помилка відправки сигналу ходу:', err);
+    }
   };
 
   // Обробка вибору на картці події
   const handleEventCardAction = (accept: boolean) => {
     console.log('🃏 Дію на картці:', accept ? 'Прийнято' : 'Відхилено');
     
+    if (!game || !playerId) return;
+
+    
     if (accept && currentEventCard) {
-      // Оновлюємо фінанси гравця
-      console.log(`💰 Фінансова операція: ${currentEventCard.value}`);
-      console.log(`📋 Деталі: ${currentEventCard.details}`);
-      
-      // Тут буде логіка оновлення фінансів гравця
-      // Наприклад: updatePlayerFinances(currentPlayer.id, currentEventCard.value)
+      const cost = currentEventCard.value || 0;
+
+      if (isOffline) {
+        // Локальне оновлення для офлайну
+        const { setGame } = useGameStore.getState();
+        const updatedGame = { ...game };
+        const playerIndex = updatedGame.players.findIndex(p => p.id === playerId);
+        
+        if (playerIndex !== -1) {
+          const player = { ...updatedGame.players[playerIndex] };
+          
+          if (player.finances.cash >= cost) {
+            player.finances.cash -= cost;
+            console.log(`💸 [OFFLINE] Витрачено: $${cost}. Залишок: $${player.finances.cash}`);
+            toasts.transactionToast('expense', cost, currentEventCard.title || 'Подія');
+            
+            // Якщо це можливість, в ідеалі додаємо актив, але зараз хоча б спишемо гроші
+            updatedGame.players[playerIndex] = player;
+            setGame(updatedGame);
+            
+            if (player.id === playerId) {
+              useGameStore.getState().setCurrentPlayer(player);
+            }
+          } else {
+            console.warn('❌ [OFFLINE] Недостатньо коштів!');
+            toasts.error('Помилка', 'Недостатньо грошей для цієї дії!');
+            // Тут можна додати логіку кредиту
+          }
+        }
+      } else {
+        // Онлайн логіка через сокети
+        try {
+          if (currentEventCard.type === 'doodad' || currentEventCard.type === 'expense') {
+            socketService.payExpense(game.id, playerId, cost);
+            toasts.transactionToast('expense', cost, currentEventCard.title || 'Подія');
+          } else if (currentEventCard.type === 'opportunity' || currentEventCard.type === 'business') {
+            // Якщо є ID угоди, купуємо її
+            if (currentEventCard.id) {
+              socketService.buyDeal(game.id, playerId, currentEventCard.id);
+              toasts.success('Угода', `Ви купили: ${currentEventCard.title}`);
+            } else {
+              // Фоллбек якщо ID немає (наприклад, стара версія)
+              socketService.payExpense(game.id, playerId, cost);
+              toasts.transactionToast('expense', cost, currentEventCard.title || 'Подія');
+            }
+          }
+          console.log(`📡 Сигнал про оплату/купівлю ($${cost}) відправлено`);
+        } catch (err) {
+          console.error('💥 Помилка відправки сигналу оплати:', err);
+          toasts.error('Помилка', 'Не вдалося відправити сигнал оплати');
+        }
+      }
     }
     
     // Закриваємо картку
     setShowEventCard(false);
     setCurrentEventCard(null);
     
-    // Передаємо хід наступному гравцю
-    console.log('🔄 Хід завершено, передача ходу...');
-    
-    // Тут буде логіка передачі ходу
-    // Наприклад: passTurnToNextPlayer()
+    // Сигналізуємо про завершення ходу (для переходу до наступного гравця)
+    if (!isOffline) {
+      socketService.completeTurn(game.id, playerId);
+    }
   };
 
-  // handleDiceRollComplete: реальна логіка після кидка кубика
+  // handleDiceRollComplete: використовується для анімації та локального руху в офлайн-режимі
   const handleDiceRollComplete = (result: number) => {
-    console.log('🎲 Кубик кинутий! Результат:', result);
+    console.log('🎲 Анімація кубика завершена:', result);
     
-    if (!game || !currentPlayer) {
-      console.warn('Гра або гравець не доступні');
-      return;
-    }
+    // Якщо ми в офлайн-режимі або DEV-MODE, оновлюємо позицію локально
+    if (game && (game.id === 'DEV-MODE' || game.id === 'OFFLINE-MODE')) {
+      console.log('🧪 Оновлення позиції локально (Mock Mode)');
+      const { setGame } = useGameStore.getState();
+      
+      const updatedGame = { ...game };
+      const playerIndex = updatedGame.players.findIndex(p => p.id === playerId);
+      
+      if (playerIndex !== -1) {
+        const player = { ...updatedGame.players[playerIndex] };
+        const oldPosition = player.position;
+        const newPosition = (oldPosition + result) % 24;
+        
+        player.position = newPosition;
+        
+        // Спрощена логіка Payday для офлайну
+        if (newPosition < oldPosition || newPosition === 0) {
+          const cashFlow = (player.finances.salary || 0) + (player.finances.passiveIncome || 0) - (player.finances.expenses || 0);
+          player.finances.cash += cashFlow;
+          console.log(`💰 [OFFLINE] Payday! +$${cashFlow}`);
+          toasts.transactionToast('income', cashFlow, 'Виплата Payday');
+        }
+        
+        updatedGame.players[playerIndex] = player;
+        updatedGame.turn += 1;
+        
+        // --- LOCAL CARD GENERATION FOR DEV-MODE ---
+        const cell = updatedGame.board.ratRaceCells[newPosition];
+        if (cell && ['opportunity', 'market', 'doodad', 'lawsuit', 'baby', 'downsize'].includes(cell.type)) {
+          setTimeout(() => {
+            let cardData: any = {
+              type: cell.type,
+              title: cell.title,
+              description: cell.description || `Подія на клітинці ${cell.title}`,
+              action: 'Ок',
+              value: 0
+            };
 
-    // Обчислюємо нову позицію гравця
-    const newPosition = (currentPlayer.position || 0) + result;
-    console.log(`📍 Гравець ${currentPlayer.name} переміщується з позиції ${currentPlayer.position || 0} на ${newPosition}`);
-    
-    // Симулюємо рух та показуємо картку події
-    setTimeout(() => {
-      showRandomEventCard();
-    }, 1000);
+            // Кастомні дані залежно від типу
+            if (cell.type === 'opportunity') {
+              cardData.title = 'Мала угода (Mock)';
+              cardData.description = 'Акції компанії "АБВ" за ціною $10. Можливий прибуток $5/міс.';
+              cardData.value = 10;
+              cardData.action = 'Купити';
+            } else if (cell.type === 'doodad') {
+              cardData.title = 'Витрати на каву (Mock)';
+              cardData.description = 'Ви вирішили пригостити друзів кавою.';
+              cardData.value = 50;
+              cardData.action = 'Сплатити';
+            } else if (cell.type === 'market') {
+              cardData.title = 'Ринковий бум (Mock)';
+              cardData.description = 'Ціни на нерухомість зросли! Кожен власник дуплекса отримує +$5000.';
+              cardData.action = 'Чудово';
+            }
+
+            setCurrentEventCard(cardData);
+            setShowEventCard(true);
+          }, 1500); // Затримка як і в онлайн-режимі
+        }
+        
+        // Оновлюємо стор
+        setGame(updatedGame);
+        if (player.id === playerId) {
+          useGameStore.getState().setCurrentPlayer(player);
+        }
+      }
+    }
+    // В онлайн режимі реальний рух відбудеться коли прийде оновлений gameState через сокет
   };
 
   return {

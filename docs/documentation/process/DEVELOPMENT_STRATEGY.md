@@ -19,6 +19,7 @@
 #### Основні правила (ЗАВЖДИ дотримуватися):
 
 1. **Два кола гри**
+
    - Внутрішнє коло (Rat Race) - 24 клітинки
    - Зовнішнє коло (Fast Track) - 16 клітинок
 
@@ -454,7 +455,7 @@ const isBalanced = GAME_HELPERS.validateDealROI(monthlyIncome, totalPrice);
 // Перевірка балансу професії
 const isProfessionBalanced = GAME_HELPERS.validateProfessionBalance(
   salary,
-  expenses,
+  expenses
 );
 ```
 

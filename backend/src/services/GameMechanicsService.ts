@@ -7,24 +7,107 @@ import TransactionService from './transactionService';
 
 export class GameMechanicsService {
 	/**
-	 * Кидання кубика та переміщення гравця
+	 * Ініціалізація ігрової дошки
 	 */
-	public static rollDiceAndMove(game: Game, playerId: string): { diceResult: number; newPosition: number; cellEffect?: CellEffect } {
+	public static initializeBoard(game: Game): void {
+		// 1. Rat Race Layout (24 клітинки)
+		const ratRaceLayout = [
+			{ type: 'opportunity', title: 'МОЖЛИВІСТЬ', description: 'Мала або велика угода' },
+			{ type: 'market', title: 'РИНОК', description: 'Ринкові події' },
+			{ type: 'doodad', title: 'ВИТРАТИ', description: 'Незаплановані витрати' },
+			{ type: 'opportunity', title: 'МОЖЛИВІСТЬ', description: 'Інвестиційний шанс' },
+			{ type: 'charity', title: 'БЛАГОДІЙНІСТЬ', description: 'Зробіть внесок у добро' },
+			{ type: 'payday', title: 'ЗАРПЛАТА', description: 'Отримайте свої гроші' },
+			{ type: 'opportunity', title: 'МОЖЛИВІСТЬ', description: 'Нерухомість або акції' },
+			{ type: 'market', title: 'РИНОК', description: 'Економічні новини' },
+			{ type: 'doodad', title: 'ВИТРАТИ', description: 'Покупка дрібничок' },
+			{ type: 'opportunity', title: 'МОЖЛИВІСТЬ', description: 'Орендний бізнес' },
+			{ type: 'baby', title: 'ДИТИНА', description: 'Поповнення в родині! (+витрати)' },
+			{ type: 'payday', title: 'ЗАРПЛАТА', description: 'День виплати' },
+			{ type: 'opportunity', title: 'МОЖЛИВІСТЬ', description: 'Малий бізнес' },
+			{ type: 'market', title: 'РИНОК', description: 'Зміна цін на активи' },
+			{ type: 'doodad', title: 'ВИТРАТИ', description: 'Рахунки та чеки' },
+			{ type: 'opportunity', title: 'МОЖЛИВІСТЬ', description: 'Золоті монети' },
+			{ type: 'downsize', title: 'ЗВІЛЬНЕННЯ', description: 'Ви втратили роботу! (пропуск 2 ходів)' },
+			{ type: 'payday', title: 'ЗАРПЛАТА', description: 'Отримання доходів' },
+			{ type: 'opportunity', title: 'МОЖЛИВІСТЬ', description: 'Земельна ділянка' },
+			{ type: 'market', title: 'РИНОК', description: 'Торгівля акціями' },
+			{ type: 'doodad', title: 'ВИТРАТИ', description: 'Ремонт авто' },
+			{ type: 'opportunity', title: 'МОЖЛИВІСТЬ', description: 'Бізнес на автомийці' },
+			{ type: 'charity', title: 'БЛАГОДІЙНІСТЬ', description: 'Допомога іншим' },
+			{ type: 'payday', title: 'ЗАРПЛАТА', description: 'Персональний дохід' }
+		];
+
+		game.board.ratRaceCells = ratRaceLayout.map((cell, id) => ({
+			id,
+			type: cell.type as any,
+			title: cell.title,
+			description: cell.description
+		}));
+
+		// 2. Fast Track Layout (16 клітинок)
+		const fastTrackLayout = [
+			{ type: 'cashflow_day', title: 'CASHFLOW DAY', description: 'Отримання пасивного доходу' },
+			{ type: 'business', title: 'БІЗНЕС', description: 'Велике підприємство' },
+			{ type: 'business', title: 'БІЗНЕС', description: 'Мережа готелів' },
+			{ type: 'lawsuit', title: 'СУД', description: 'Юридичні проблеми' },
+			{ type: 'business', title: 'БІЗНЕС', description: 'Агрохолдинг' },
+			{ type: 'cashflow_day', title: 'CASHFLOW DAY', description: 'День виплат' },
+			{ type: 'business', title: 'БІЗНЕС', description: 'Технологічний гігант' },
+			{ type: 'dream_check', title: 'МРІЯ', description: 'Ваш шанс на перемогу!' },
+			{ type: 'business', title: 'БІЗНЕС', description: 'Виробнича лінія' },
+			{ type: 'tax_audit', title: 'ПЕРЕВІРКА', description: 'Податковий аудит' },
+			{ type: 'business', title: 'БІЗНЕС', description: 'Торговельний центр' },
+			{ type: 'cashflow_day', title: 'CASHFLOW DAY', description: 'Збір дивідендів' },
+			{ type: 'business', title: 'БІЗНЕС', description: 'Логістична компанія' },
+			{ type: 'divorce', title: 'РОЗЛУЧЕННЯ', description: 'Втрата 50% активів' },
+			{ type: 'business', title: 'БІЗНЕС', description: 'Енергетичний сектор' },
+			{ type: 'dream_check', title: 'МРІЯ', description: 'Перевірка мети' }
+		];
+
+		game.board.fastTrackCells = fastTrackLayout.map((cell, id) => ({
+			id,
+			type: cell.type as any,
+			title: cell.title,
+			description: cell.description
+		}));
+
+		console.log(`✅ Game board initialized for game ${game.id}`);
+	}
+	public static rollDiceAndMove(game: Game, playerId: string): { diceResult: number; newPosition: number; cellEffect?: CellEffect; passedPayday?: boolean } {
 		const player = game.players.find(p => p.id === playerId);
 		if (!player) {
 			throw new Error('Гравця не знайдено');
 		}
 
 		const diceResult = Math.floor(Math.random() * GAME_CONSTANTS.DICE_SIDES) + 1;
+		let passedPayday = false;
 
 		if (player.isOnFastTrack) {
 			// Рух по швидкій доріжці
-			player.fastTrackPosition = (player.fastTrackPosition + diceResult) % GAME_CONSTANTS.FAST_TRACK_CELLS;
+			const previousPosition = player.fastTrackPosition;
+			const newPosition = (previousPosition + diceResult) % GAME_CONSTANTS.FAST_TRACK_CELLS;
+			
+			// Перевірка проходження через Cashflow Day (клітинки 0, 5, 11)
+			// Якщо ми перестрибнули або наступили на ці клітинки
+			const cashflowDayCells = [0, 5, 11];
+			passedPayday = cashflowDayCells.some(cell => {
+				if (previousPosition < cell && newPosition >= cell) return true;
+				if (newPosition < previousPosition && cell > previousPosition) return true;
+				if (newPosition < previousPosition && cell <= newPosition) return true;
+				return false;
+			});
+
+			player.fastTrackPosition = newPosition;
 		} else {
 			// Рух по щурячих перегонах
-			const newPosition = (player.position + diceResult) % GAME_CONSTANTS.RAT_RACE_CELLS;
+			const previousPosition = player.position;
+			const newPosition = (previousPosition + diceResult) % GAME_CONSTANTS.RAT_RACE_CELLS;
 
-			// НЕ обробляємо зарплату тут - вона обробляється в executeTurn()
+			// Перевірка проходження через клітинку Payday (0)
+		if (newPosition < previousPosition || newPosition === 0) {
+				passedPayday = true;
+			}
 
 			player.position = newPosition;
 		}
@@ -35,7 +118,8 @@ export class GameMechanicsService {
 		return {
 			diceResult,
 			newPosition: player.isOnFastTrack ? player.fastTrackPosition : player.position,
-			cellEffect
+			cellEffect,
+			passedPayday
 		};
 	}
 
@@ -43,35 +127,75 @@ export class GameMechanicsService {
 	 * Отримання ефекту клітинки
 	 */
 	private static getCellEffect(game: Game, player: Player): CellEffect | undefined {
-		// Для спрощення використовуємо позицію гравця для визначення типу клітинки
 		const position = player.isOnFastTrack ? player.fastTrackPosition : player.position;
 
-		// Визначаємо тип клітинки на основі позиції (спрощена логіка)
-		const cellTypes = ['opportunity', 'market', 'doodad', 'charity', 'paycheck'];
-		const cellTypeIndex = position % cellTypes.length;
-		const cellType = cellTypes[cellTypeIndex];
+		if (player.isOnFastTrack) {
+			// Розкладка швидкої доріжки (16 клітинок)
+			const ftLayout = [
+				'cashflow_day', 'business', 'business', 'lawsuit', 
+				'business', 'cashflow_day', 'business', 'dream_check', 
+				'business', 'tax_audit', 'business', 'cashflow_day', 
+				'business', 'divorce', 'business', 'dream_check'
+			];
+			const cellType = ftLayout[position % ftLayout.length];
+			
+			if (cellType === 'cashflow_day') return undefined; // Обробляється в rollDiceAndMove -> executeTurn
+			
+			return CardService.generateCellEffect(cellType);
+		} else {
+			// Визначаємо тип клітинки на основі позиції для Rat Race (спрощена логіка)
+			const cellTypes = ['opportunity', 'market', 'doodad', 'charity', 'paycheck'];
+			const cellTypeIndex = position % cellTypes.length;
+			const cellType = cellTypes[cellTypeIndex];
 
-		// Пропускаємо ефект для клітинки зарплати (paycheck)
-		if (cellType === 'paycheck') {
-			return undefined;
+			if (cellType === 'paycheck') {
+				return undefined;
+			}
+
+			return CardService.generateCellEffect(cellType);
 		}
+	}
 
-		// Генеруємо ефект через CardService
-		return CardService.generateCellEffect(cellType);
+	/**
+	 * Отримання доходів на швидкій доріжці (Cashflow Day)
+	 */
+	private static async collectFastTrackIncome(player: Player, gameId: string): Promise<void> {
+		// Дохід на швидкій доріжці = пасивний дохід
+		const income = player.finances.passiveIncome;
+		player.finances.cash += income;
+		
+		try {
+			await TransactionService.getInstance().processSalary(player.id, gameId, income, player);
+		} catch (error) {
+			console.error('Error processing fast track income:', error);
+		}
 	}
 
 	/**
 	 * Отримання зарплати
 	 */
 	private static async collectSalary(player: Player, gameId: string): Promise<void> {
-		const totalIncome = player.finances.salary + player.finances.passiveIncome;
-		player.finances.cash += totalIncome;
+		// Cash Flow (Місячний грошовий потік) = (Зарплата + Пасивний дохід) - Витрати
+		const cashFlow = (player.finances.salary || 0) + (player.finances.passiveIncome || 0) - (player.finances.expenses || 0);
 		
-		// Створюємо транзакцію в БД
-		try {
-			await TransactionService.getInstance().processSalary(player.id, gameId, totalIncome);
-		} catch (error) {
-			console.error('Error processing salary transaction:', error);
+		if (cashFlow > 0) {
+			player.finances.cash += cashFlow;
+			try {
+				await TransactionService.getInstance().processSalary(player.id, gameId, cashFlow, player);
+				console.log(`💰 [SALARY] Added cashflow $${cashFlow} to player ${player.name}. New balance: $${player.finances.cash}`);
+			} catch (error) {
+				console.error('Error processing salary transaction:', error);
+			}
+		} else if (cashFlow < 0) {
+			// Якщо витрати перевищують доходи - списуємо різницю
+			const shortfall = Math.abs(cashFlow);
+			if (player.finances.cash >= shortfall) {
+				player.finances.cash -= shortfall;
+				console.log(`💸 [SALARY] Deducted negative cashflow $${shortfall} from player ${player.name}`);
+			} else {
+				// Якщо не вистачає покрити негативний потік - викликаємо payExpenses для оформлення кредиту
+				await this.payExpenses(player, gameId);
+			}
 		}
 	}
 
@@ -87,7 +211,7 @@ export class GameMechanicsService {
 			
 			// Створюємо транзакцію в БД
 			try {
-				await transactionService.processExpense(player.id, gameId, totalExpenses, 'Monthly expenses payment');
+				await transactionService.processExpense(player.id, gameId, totalExpenses, 'Monthly expenses payment', undefined, player);
 			} catch (error) {
 				console.error('Error processing expense transaction:', error);
 			}
@@ -104,7 +228,7 @@ export class GameMechanicsService {
 
 			// Створюємо транзакцію в БД
 			try {
-				await transactionService.processExpense(player.id, gameId, player.finances.cash, 'Monthly expenses with loan');
+				await transactionService.processExpense(player.id, gameId, player.finances.cash, 'Monthly expenses with loan', undefined, player);
 			} catch (error) {
 				console.error('Error processing expense transaction:', error);
 			}
@@ -141,7 +265,7 @@ export class GameMechanicsService {
 
 		try {
 			// Створюємо транзакцію в БД
-			await transactionService.processAssetPurchase(player.id, game.id, requiredCash, deal.id, `Покупка: ${deal.title}`);
+			await transactionService.processAssetPurchase(player.id, game.id, requiredCash, deal.id, `Покупка: ${deal.title}`, player);
 
 			// Оновлюємо фінанси гравця
 			player.finances.cash -= requiredCash;
@@ -155,11 +279,11 @@ export class GameMechanicsService {
 			player.finances.assets.push({
 				id: deal.id,
 				name: deal.title,
-				type: deal.category,
+				type: deal.category as any, // Cast to any or appropriate AssetType
 				cost: deal.cost,
-				cashFlow: deal.cashFlow,
+				cashFlow: deal.cashFlow || 0,
 				acquiredAt: new Date()
-			});
+			} as any); // Asset interface might slightly differ from local storage logic
 
 			// Помічаємо угоду як продану
 			deal.isAvailable = false;
@@ -167,6 +291,8 @@ export class GameMechanicsService {
 
 			const transaction: FinancialTransaction = {
 				id: `txn_${Date.now()}`,
+				playerId: player.id,
+				type: 'asset_purchase',
 				amount: requiredCash,
 				description: `Покупка: ${deal.title}`,
 				recurring: false,
@@ -221,15 +347,27 @@ export class GameMechanicsService {
 			switch (cellEffect.type) {
 				case 'draw_card':
 					const cardData = cellEffect.data as any;
-					if (cardData.cardType === 'doodad' && cardData.card) {
-						// Обробляємо витрати на doodad
+					if (!cardData.card) break;
+
+					if (cardData.cardType === 'doodad' || cardData.cardType === 'lawsuit' || cardData.cardType === 'tax_audit') {
+						const cost = cardData.card.cost || 0;
+						// Ми не знімаємо кошти автоматично тут, щоб гравець сам натиснув "Сплатити" на фронтенді.
+						// Це запобігає подвійному списанню.
+						/*
 						await transactionService.processExpense(
 							player.id,
 							gameId,
-							cardData.card.cost || 0,
-							cardData.card.title || 'Doodad expense'
+							cost,
+							cardData.card.title || 'Fast Track expense',
+							undefined,
+							player
 						);
-						player.finances.cash -= cardData.card.cost || 0;
+						player.finances.cash -= cost;
+						*/
+						console.log(`ℹ️ [CELL_EFFECT] Card ${cardData.cardType} drawn. Waiting for player to pay $${cost}`);
+					} else if (cardData.cardType === 'divorce') {
+						// Divorce також краще обробляти через вибір гравця
+						console.log(`ℹ️ [CELL_EFFECT] Divorce event drawn.`);
 					}
 					break;
 					
@@ -246,14 +384,17 @@ export class GameMechanicsService {
 								gameId,
 								cellEffect.data.amount,
 								'market_event',
-								cellEffect.data.description || 'Market gain'
+								cellEffect.data.description || 'Market gain',
+								player
 							);
 						} else {
 							await transactionService.processExpense(
 								player.id,
 								gameId,
 								Math.abs(cellEffect.data.amount),
-								cellEffect.data.description || 'Market loss'
+								cellEffect.data.description || 'Market loss',
+								undefined,
+								player
 							);
 						}
 						player.finances.cash += cellEffect.data.amount;
@@ -340,8 +481,6 @@ export class GameMechanicsService {
 		}
 
 		const turn: GameTurn = {
-			id: `turn_${game.id}_${playerId}_${Date.now()}`,
-			gameId: game.id,
 			playerId,
 			turnNumber: game.turn,
 			actions: [],
@@ -351,14 +490,9 @@ export class GameMechanicsService {
 
 		try {
 			// 1. Спочатку сплачуємо щомісячні витрати
-			const expenseResult = await this.payExpenses(player, game.id);
-			turn.actions.push({
-				id: `action_${Date.now()}_expense`,
-				type: 'pay_expense',
-				data: { amount: player.finances.expenses },
-				result: { message: expenseResult.message },
-				timestamp: new Date()
-			});
+			// 1. Щомісячні витрати अब не сплачуються щоходу окремо,
+			// вони враховуються тільки під час проходження Payday або спеціальних подій.
+
 
 			// 2. Кидання кубика та переміщення
 			const moveResult = this.rollDiceAndMove(game, playerId);
@@ -371,6 +505,21 @@ export class GameMechanicsService {
 				result: moveResult,
 				timestamp: new Date()
 			});
+
+			// 3.5 Отримання зарплати або доходу FT при проходженні Payday
+			if (moveResult.passedPayday) {
+				if (player.isOnFastTrack) {
+					await this.collectFastTrackIncome(player, game.id);
+				} else {
+					await this.collectSalary(player, game.id);
+				}
+				turn.actions.push({
+					id: `action_${Date.now()}_income`,
+					type: 'collect_income',
+					data: { amount: player.isOnFastTrack ? player.finances.passiveIncome : (player.finances.salary + player.finances.passiveIncome - player.finances.expenses) },
+					timestamp: new Date()
+				});
+			}
 
 			// 4. Виконуємо дію клітинки (якщо є)
 			if (moveResult.cellEffect) {

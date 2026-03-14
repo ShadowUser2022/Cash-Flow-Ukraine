@@ -192,19 +192,120 @@ export class CardService {
 	}
 
 	/**
+	 * Генерація карти бізнесу для Fast Track
+	 */
+	public static generateBusinessCard(): Card & { dealData?: Deal } {
+		const businesses = [
+			{
+				id: `bus_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+				type: 'opportunity' as const,
+				category: 'business',
+				title: 'Мережа готелів "Карпатська зірка"',
+				description: 'Велика мережа готелів у курортній зоні. Потребує значних інвестицій, але приносить величезний пасивний дохід.',
+				cost: 500000,
+				cashFlow: 15000,
+				downPayment: 100000,
+				isActive: true,
+				dealData: {
+					id: `deal_${Date.now()}_ft_business_1`,
+					type: 'big' as const,
+					category: 'business',
+					title: 'Мережа готелів "Карпатська зірка"',
+					description: 'Готелі преміум-класу',
+					cost: 500000,
+					downPayment: 100000,
+					mortgage: 400000,
+					cashFlow: 15000,
+					isAvailable: true
+				}
+			},
+			{
+				id: `bus_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+				type: 'opportunity' as const,
+				category: 'business',
+				title: 'Харчовий холдинг',
+				description: 'Об\u0027єднання заводів з переробки агропродукції. Стабільний бізнес на експорт.',
+				cost: 1000000,
+				cashFlow: 35000,
+				downPayment: 250000,
+				isActive: true,
+				dealData: {
+					id: `deal_${Date.now()}_ft_business_2`,
+					type: 'big' as const,
+					category: 'business',
+					title: 'Харчовий холдинг',
+					description: 'Агропромисловий бізнес',
+					cost: 1000000,
+					downPayment: 250000,
+					mortgage: 750000,
+					cashFlow: 35000,
+					isAvailable: true
+				}
+			}
+		];
+		return businesses[Math.floor(Math.random() * businesses.length)];
+	}
+
+	/**
+	 * Генерація карти судового позову (Lawsuit)
+	 */
+	public static generateLawsuitCard(): Card {
+		return {
+			id: `law_${Date.now()}`,
+			type: 'doodad' as const,
+			category: 'lawsuit',
+			title: 'Судовий позов',
+			description: 'На вас подали до суду через старий бізнес-контракт. Потрібно сплатити послуги адвокатів та компенсацію.',
+			cost: 50000,
+			isActive: true
+		};
+	}
+
+	/**
+	 * Генерація карти розлучення (Divorce)
+	 */
+	public static generateDivorceCard(): Card {
+		return {
+			id: `div_${Date.now()}`,
+			type: 'doodad' as const,
+			category: 'divorce',
+			title: 'Розлучення',
+			description: 'Суд постановив розділити активи. Ви втрачаєте 50% своєї поточної готівки.',
+			cost: 0, // Динамічно розраховується як 50% cash
+			isActive: true
+		};
+	}
+
+	/**
+	 * Генерація карти податкової перевірки (Tax Audit)
+	 */
+	public static generateTaxAuditCard(): Card {
+		return {
+			id: `tax_${Date.now()}`,
+			type: 'doodad' as const,
+			category: 'tax_audit',
+			title: 'Податкова перевірка',
+			description: 'Виявлено неточності у звітності за минулі роки. Сплата штрафу.',
+			cost: 25000,
+			isActive: true
+		};
+	}
+
+	/**
 	 * Генерація ефекту клітинки на основі типу
 	 */
 	public static generateCellEffect(cellType: string): CellEffect {
 		switch (cellType) {
 			case 'opportunity':
-				const opportunityCard = this.generateOpportunityCard();
+			case 'business':
+				const opportunityCard = cellType === 'business' ? this.generateBusinessCard() : this.generateOpportunityCard();
 				return {
 					type: 'draw_card',
 					data: {
-						cardType: 'opportunity',
+						cardType: cellType,
 						card: opportunityCard.dealData || {
 							id: opportunityCard.id,
-							type: 'small',
+							type: cellType === 'business' ? 'big' : 'small',
 							category: opportunityCard.category,
 							title: opportunityCard.title,
 							description: opportunityCard.description,
@@ -227,11 +328,19 @@ export class CardService {
 				};
 
 			case 'doodad':
-				const doodadCard = this.generateDoodadCard();
+			case 'lawsuit':
+			case 'divorce':
+			case 'tax_audit':
+				let doodadCard: Card;
+				if (cellType === 'lawsuit') doodadCard = this.generateLawsuitCard();
+				else if (cellType === 'divorce') doodadCard = this.generateDivorceCard();
+				else if (cellType === 'tax_audit') doodadCard = this.generateTaxAuditCard();
+				else doodadCard = this.generateDoodadCard();
+
 				return {
 					type: 'draw_card',
 					data: {
-						cardType: 'doodad',
+						cardType: cellType,
 						card: doodadCard
 					}
 				};
@@ -249,6 +358,7 @@ export class CardService {
 				};
 
 			case 'dream':
+			case 'dream_check':
 				return {
 					type: 'dream_check',
 					data: {

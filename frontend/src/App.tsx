@@ -126,6 +126,21 @@ function App() {
       },
     );
 
+    socket.on("game-started", (data: { gameId: string; gameState?: any }) => {
+      console.log("🚀 Game started event received:", data);
+      if (data.gameState) {
+        setGame(data.gameState);
+        
+        // Знаходимо поточного гравця
+        const currentPlayerData = data.gameState.players?.find(
+          (p: any) => p.id === currentPlayerId,
+        );
+        if (currentPlayerData) {
+          setCurrentPlayer(currentPlayerData);
+        }
+      }
+    });
+
     return () => {
       socketService.disconnectGame();
     };
@@ -405,123 +420,108 @@ function App() {
     socketService.connectToGame();
   };
 
-  const startSinglePlayerMode = () => {
-    console.log("🎮 Запуск одиночної гри...");
+  const startSinglePlayerMode = async () => {
+    console.log("🎮 Запуск одиночної гри через backend...");
 
-    const singlePlayerId = currentPlayerId || "SINGLE-001";
-    const singlePlayerName = playerName || "Гравець";
+    if (!playerName.trim()) {
+      addNotification(
+        "warning",
+        "Введіть ім'я",
+        "Будь ласка, введіть ваше ім'я для початку гри",
+      );
+      return;
+    }
 
-    const singlePlayer = {
-      id: singlePlayerId,
-      name: singlePlayerName,
-      position: 0,
-      fastTrackPosition: 0,
-      profession: {
-        name: "Програміст",
-        salary: 5000,
-        expenses: 3000,
-        description: "Розробник програмного забезпечення",
-      },
-      finances: {
-        salary: 5000,
-        passiveIncome: 0,
-        expenses: 3000,
-        cash: 10000,
-        assets: [],
-        liabilities: [],
-      },
-      assets: [],
-      passiveIncome: 0,
-      isOnFastTrack: false,
-      isReady: true,
-      isConnected: true,
-      dream: undefined,
-    };
-
-    const singlePlayerGame = {
-      id: "SINGLE-PLAYER-MODE",
-      hostId: singlePlayerId,
-      state: "in_progress" as const,
-      currentPlayer: singlePlayerId,
-      turn: 1,
-      players: [singlePlayer],
-      settings: {
-        maxPlayers: 1,
-        timeLimit: 3600,
-        language: "uk" as const,
-        allowSpectators: false,
-        difficulty: "normal" as const,
-      },
-      board: {
-        ratRaceCells: [],
-        fastTrackCells: [],
-      },
-      deals: [
-        // Угоди для одиночної гри
-        {
-          id: "deal_house_1",
-          title: "Квартира-студія",
-          type: "small" as const,
-          category: "real_estate",
-          cost: 45000,
-          downPayment: 5000,
-          cashFlow: 200,
-          mortgage: 40000,
-          description: "Однокімнатна квартира в новобудові",
-          isAvailable: true,
-          requirements: [],
+    setIsCreatingGame(true);
+    try {
+      // 1. Створюємо гру на сервері
+      const response = await fetch(config.endpoints.createGame, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-        {
-          id: "deal_stock_1",
-          title: "Акції IT компанії",
-          type: "small" as const,
-          category: "stocks",
-          cost: 8000,
-          downPayment: 8000,
-          cashFlow: 150,
-          description: "Дивідендні акції зростаючої IT компанії",
-          isAvailable: true,
-          requirements: [],
+        body: JSON.stringify({
+          hostId: currentPlayerId,
+          settings: {
+            maxPlayers: 1,
+            difficulty: "normal"
+          }
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        const newGameId = data.game.id;
+        console.log("✅ Гру створено на сервері:", newGameId);
+        
+        // 2. Приєднуємося до гри
+        const joined = await joinExistingGame(newGameId);
+        
+        if (joined) {
+          // 3. Відправляємо сигнал про старт гри (оскільки це одиночний режим)
+          console.log("🚀 Стартуємо гру негайно...");
+          socketService.getGameSocket()?.emit("game-started", { gameId: newGameId });
+          
+          addNotification(
+            "success",
+            "Гру розпочато!",
+            "Ви граєте у режимі одного гравця (на базі реальних механік)",
+          );
+        }
+      } else {
+        throw new Error(data.error || "Не вдалося створити гру");
+      }
+    } catch (err) {
+      console.error("💥 Помилка запуску одиночної гри:", err);
+      // Fallback до mock режиму якщо сервер недоступний
+      addNotification("warning", "Сервер недоступний", "Запуск у офлайн-режимі (обмежений функціонал)");
+      
+      const singlePlayerId = currentPlayerId || "OFFLINE-001";
+      const singlePlayerGame = {
+        id: "OFFLINE-MODE",
+        hostId: singlePlayerId,
+        state: "in_progress" as const,
+        currentPlayer: singlePlayerId,
+        turn: 1,
+        players: [{
+          id: singlePlayerId,
+          name: playerName || "Гравець",
+          position: 0,
+          fastTrackPosition: 0,
+          profession: { name: "Вчитель", salary: 3300, expenses: 2500 },
+          finances: { salary: 3300, passiveIncome: 0, expenses: 2500, cash: 10000, assets: [], liabilities: [] },
+          assets: [],
+          passiveIncome: 0,
+          isOnFastTrack: false,
+          isReady: true,
+          isConnected: true,
+        }],
+        settings: { maxPlayers: 1, timeLimit: 3600, language: "uk" as const, allowSpectators: false, difficulty: "normal" as const },
+        board: {
+          ratRaceCells: Array(24).fill(null).map((_, i) => ({
+            id: i,
+            type: ['opportunity', 'market', 'doodad', 'charity', 'payday'][i % 5] as any,
+            title: ['МОЖЛИВІСТЬ', 'РИНОК', 'ВИТРАТИ', 'БЛАГОДІЙНІСТЬ', 'ЗАРПЛАТА'][i % 5],
+            description: 'Offline mode cell'
+          })),
+          fastTrackCells: Array(16).fill(null).map((_, i) => ({
+            id: i,
+            type: 'business' as any,
+            title: 'БІЗНЕС',
+            description: 'Offline mode FT cell'
+          }))
         },
-        {
-          id: "deal_business_1",
-          title: "Кав'ярня",
-          type: "big" as const,
-          category: "business",
-          cost: 120000,
-          downPayment: 25000,
-          cashFlow: 1200,
-          description: "Готовий бізнес з постійною клієнтурою",
-          isAvailable: true,
-          requirements: [],
-        },
-      ],
-      marketEvents: [],
-      negotiations: [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-
-    console.log("🎮 Single player game created:", singlePlayerGame);
-
-    // Встановлюємо в gameStore
-    setGame(singlePlayerGame);
-    setCurrentPlayer(singlePlayer);
-    setStorePlayerId(singlePlayerId);
-
-    // Встановлюємо локальні стани (БЕЗ isDeveloperMode = true)
-    setGameId("SINGLE-PLAYER-MODE");
-    setPlayerId(singlePlayerId);
-    setIsDeveloperMode(false); // ✅ Важливо: НЕ включаємо developer mode
-    setCurrentScreen("game");
-
-    addNotification(
-      "success",
-      "Гра розпочата!",
-      "Ви граєте у режимі одного гравця",
-    );
-
-    console.log("✅ Одиночна гра запущена без developer панелі!");
+        deals: [], marketEvents: [], negotiations: [], createdAt: new Date(), updatedAt: new Date(),
+      };
+      setGame(singlePlayerGame);
+      setCurrentPlayer(singlePlayerGame.players[0]);
+      setStorePlayerId(singlePlayerId);
+      setGameId("OFFLINE-MODE");
+      setCurrentScreen("game");
+    } finally {
+      setIsCreatingGame(false);
+    }
   };
 
   const startDeveloperMode = () => {
@@ -571,8 +571,18 @@ function App() {
         difficulty: "normal" as const,
       },
       board: {
-        ratRaceCells: [],
-        fastTrackCells: [],
+        ratRaceCells: Array(24).fill(null).map((_, i) => ({
+          id: i,
+          type: ['opportunity', 'market', 'doodad', 'charity', 'payday', 'opportunity', 'market', 'doodad', 'opportunity', 'baby', 'payday', 'opportunity', 'market', 'doodad', 'opportunity', 'downsize', 'payday', 'opportunity', 'market', 'doodad', 'opportunity', 'charity', 'payday', 'opportunity'][i % 24] as any,
+          title: ['МОЖЛИВІСТЬ', 'РИНОК', 'ВИТРАТИ', 'МОЖЛИВІСТЬ', 'БЛАГОДІЙНІСТЬ', 'ЗАРПЛАТА', 'МОЖЛИВІСТЬ', 'РИНОК', 'ВИТРАТИ', 'МОЖЛИВІСТЬ', 'ДИТИНА', 'ЗАРПЛАТА', 'МОЖЛИВІСТЬ', 'РИНОК', 'ВИТРАТИ', 'ГРОШІ', 'ЗВІЛЬНЕННЯ', 'ЗАРПЛАТА', 'МОЖЛИВІСТЬ', 'РИНОК', 'ВИТРАТИ', 'БІЗНЕС', 'БЛАГОДІЙНІСТЬ', 'ЗАРПЛАТА'][i % 24],
+          description: 'Dev mode cell'
+        })),
+        fastTrackCells: Array(16).fill(null).map((_, i) => ({
+          id: i,
+          type: 'business' as any,
+          title: 'БІЗНЕС',
+          description: 'Dev mode FT cell'
+        })),
       },
       deals: [],
       marketEvents: [],

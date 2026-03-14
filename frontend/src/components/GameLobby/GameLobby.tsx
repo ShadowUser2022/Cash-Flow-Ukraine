@@ -502,10 +502,10 @@ const GameLobby: React.FC<GameLobbyProps> = ({
                   ? `${selectedDream.icon} ${selectedDream.title}`
                   : "🌟 Обрати мрію"}
               </button>
-              {selectedDream && (
+              {selectedDream && typeof selectedDream === 'object' && 'estimatedCost' in selectedDream && (
                 <div className="dream-details">
                   <span className="dream-goal">
-                    Ціль: ${selectedDream.estimatedCost.toLocaleString()}
+                    Ціль: ${Number(selectedDream.estimatedCost).toLocaleString()}
                   </span>
                 </div>
               )}

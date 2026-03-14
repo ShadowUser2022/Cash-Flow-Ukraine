@@ -28,10 +28,15 @@ const GameInterface: React.FC<GameInterfaceProps> = ({ gameId, playerId }) => {
   // === STATE & HOOKS ===
   const { game, currentPlayer } = useGameStore();
   // Stub/mock дані для пропсів
-  const [playerMovement] = useState<any>(null); // для BoardContainer
+  const [playerMovement, setPlayerMovement] = useState<{
+    playerId: string;
+    fromPosition: number;
+    toPosition: number;
+    isAnimating: boolean;
+  } | null>(null); // для BoardContainer
   const [leftSidebarOpen, setLeftSidebarOpen] = useState(false);
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false);
-  const { toasts, removeToast, addToast } = useToast();
+  const { toasts, removeToast, addToast, success, info, error, transactionToast } = useToast();
   // Стартове toast-повідомлення при запуску гри
   useEffect(() => {
     if (game && currentPlayer) {
@@ -56,7 +61,13 @@ const GameInterface: React.FC<GameInterfaceProps> = ({ gameId, playerId }) => {
     currentEventCard,
     showEventCard,
     handleEventCardAction
-  } = usePlayerTurnLogic({ game, playerId, currentPlayer });
+  } = usePlayerTurnLogic({ 
+    game, 
+    playerId, 
+    currentPlayer, 
+    toasts: { success, info, error, transactionToast },
+    setPlayerMovement
+  });
 
   // === Stub-функції для пропсів ===
   const handleCellClick = () => {};
@@ -85,6 +96,7 @@ const GameInterface: React.FC<GameInterfaceProps> = ({ gameId, playerId }) => {
           playerMovement={playerMovement}
           onCellClick={handleCellClick}
           onExecuteTurn={handleExecuteTurn}
+          onDiceRollComplete={handleDiceRollComplete}
         />
       ) : (
         <div style={{color: '#FFD700', textAlign: 'center', marginTop: 40}}>Завантаження ігрового поля...</div>

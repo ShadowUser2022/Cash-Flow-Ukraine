@@ -7,8 +7,9 @@ import './GameBoard.css';
 
 interface GameBoardProps {
 	onCellClick?: (cellIndex: number) => void;
-	onExecuteTurn?: () => void;  // Додаємо callback для виконання ходу
-	movingPlayer?: string | null; // ID гравця що рухається
+	onExecuteTurn?: () => void;
+	onDiceRollComplete?: (result: number) => void; // Новий callback
+	movingPlayer?: string | null;
 	playerMovement?: {
 		playerId: string;
 		fromPosition: number;
@@ -20,7 +21,7 @@ interface GameBoardProps {
 const GameBoard: React.FC<GameBoardProps> = ({
 	onCellClick,
 	onExecuteTurn,
-	movingPlayer,
+	onDiceRollComplete,
 	playerMovement
 }) => {
 	const {
@@ -84,7 +85,11 @@ const GameBoard: React.FC<GameBoardProps> = ({
 			// Відправляємо подію для статистики
 			window.dispatchEvent(new CustomEvent('diceRolled', { detail: rollResult }));
 
-			// Викликаємо callback для руху гравця
+			// Викликаємо callback-и
+			if (onDiceRollComplete) {
+				onDiceRollComplete(rollResult);
+			}
+
 			if (onExecuteTurn) {
 				onExecuteTurn();
 			}
@@ -93,25 +98,6 @@ const GameBoard: React.FC<GameBoardProps> = ({
 		}, 1000);
 	};
 
-	// Функції швидкого тестування (тільки в DEV-MODE)
-	const handleQuickRoll = (value: number) => {
-		if (!game || game.id !== 'DEV-MODE') return;
-		
-		setDiceAnimation({ isRolling: true, playerId, axis: 'x' });
-		
-		setTimeout(() => {
-			setDiceAnimation({ isRolling: false, result: value, playerId });
-			console.log(`🎲 Швидкий кубик: ${value}`);
-			
-			// Симулюємо рух (тільки для тесту)
-			if (currentPlayer) {
-				// Логіка руху буде виконана в GameInterface
-				if (onExecuteTurn) {
-					onExecuteTurn();
-				}
-			}
-		}, 1000);
-	};
 
 	const handleCellClick = (cellIndex: number) => {
 		if (onCellClick) {
@@ -119,31 +105,64 @@ const GameBoard: React.FC<GameBoardProps> = ({
 		}
 	};
 
-	// Map board cells using simple mock data
+	// Map board cells using real game data
 	const getBoardCell = (index: number) => {
-		// Simple mock board cells
-		const mockCells = [
-			{ type: 'start', name: 'START', description: 'Стартова позиція' },
-			{ type: 'expense', name: 'Витрати', description: 'Фінансові витрати' },
-			{ type: 'small-deal', name: 'Мала угода', description: 'Можливість інвестування' },
-			{ type: 'big-deal', name: 'Велика угода', description: 'Велика інвестиція' },
-			{ type: 'salary', name: 'ЗАРПЛАТА', description: 'Отримання зарплати' },
-			{ type: 'fast-track', name: 'Швидка доріжка', description: 'Фінансова свобода' },
-		];
-		
-		const cellIndex = index % mockCells.length;
-		return mockCells[cellIndex];
+		if (!game) return { type: 'start', name: 'Start', description: '' };
+
+		if (game.hostId === 'DEV-MODE') {
+			// Mock data for dev mode if needed
+			const mockCells = [
+				{ type: 'start', name: 'START', description: 'Стартова позиція' },
+				{ type: 'expense', name: 'Витрати', description: 'Фінансові витрати' },
+				{ type: 'opportunity', name: 'Мала угода', description: 'Можливість інвестування' },
+				{ type: 'market', name: 'Ринок', description: 'Ринкові події' },
+				{ type: 'payday', name: 'ЗАРПЛАТА', description: 'Отримання зарплати' },
+			];
+			const cellIndex = index % mockCells.length;
+			return mockCells[cellIndex];
+		}
+
+		// Real data from game.board
+		const isOnFastTrack = currentPlayer?.isOnFastTrack;
+		const boardCells = isOnFastTrack ? game.board.fastTrackCells : game.board.ratRaceCells;
+		const cell = boardCells[index % boardCells.length];
+
+		return {
+			type: cell?.type || 'opportunity',
+			name: cell?.title || cell?.type?.toUpperCase() || 'Cell',
+			description: cell?.description || ''
+		};
 	};
 
-	const renderCell = (cellIndex: number) => {
+	const renderCell = (cellIndex: number, gridSize: number) => {
 		const cell = getBoardCell(cellIndex);
-		const playersOnCell = game?.players.filter((p: Player) => p.position === cellIndex) || [];
+		
+		// Determine grid position for perimeter
+		let gridColumn = 1;
+		let gridRow = 1;
+		
+		if (cellIndex < gridSize) {
+			gridColumn = cellIndex + 1;
+			gridRow = 1;
+		} else if (cellIndex < gridSize * 2 - 1) {
+			gridColumn = gridSize;
+			gridRow = cellIndex - gridSize + 2;
+		} else if (cellIndex < gridSize * 3 - 2) {
+			gridColumn = gridSize - (cellIndex - (gridSize * 2 - 2));
+			gridRow = gridSize;
+		} else {
+			gridColumn = 1;
+			gridRow = gridSize - (cellIndex - (gridSize * 3 - 3));
+		}
+
+		const playersOnCell = game?.players.filter((p: Player) => (p.isOnFastTrack === currentPlayer?.isOnFastTrack) && (p.isOnFastTrack ? p.fastTrackPosition : p.position) === cellIndex) || [];
 
 		return (
 			<div
 				key={cellIndex}
 				className={`card board-card card-sm board-cell ${cell.type} ${playersOnCell.length > 0 ? 'has-players' : ''}`}
 				onClick={() => handleCellClick(cellIndex)}
+				style={{ gridColumn, gridRow }}
 				title={cell.description}
 			>
 				<div className="cell-content">
@@ -190,34 +209,34 @@ const GameBoard: React.FC<GameBoardProps> = ({
 			case 'start':
 				return '🏁';
 			case 'payday':
+			case 'paycheck':
+			case 'cashflow_day':
 				return '💰';
 			case 'opportunity':
-				return '🎯';
+				return '🏠';
+			case 'business':
+				return '🏢';
 			case 'market':
 				return '📈';
 			case 'charity':
 				return '❤️';
-			case 'downsize':
-				return '📉';
 			case 'doodad':
+			case 'expense':
 				return '🛍️';
-			case 'fast_track':
-				return '�';
+			case 'lawsuit':
+				return '⚖️';
+			case 'divorce':
+				return '💔';
+			case 'tax_audit':
+				return '📄';
 			case 'dream':
+			case 'dream_check':
 				return '🏆';
-			// Legacy types for compatibility
-			case 'paycheck':
-				return '�';
 			case 'baby':
 				return '👶';
 			case 'downsized':
+			case 'downsize':
 				return '📉';
-			case 'small_deal':
-				return '🏠';
-			case 'big_deal':
-				return '🏢';
-			case 'cashflow_day':
-				return '🎊';
 			default:
 				return '❓';
 		}
@@ -243,25 +262,6 @@ const GameBoard: React.FC<GameBoardProps> = ({
 					{diceAnimation.isRolling ? 'Кидаємо...' : 'Кинути кубик'}
 				</button>
 				
-				{/* Швидкі кнопки для тестового режиму */}
-				{game?.id === 'DEV-MODE' && (
-					<div className="quick-test-controls">
-						<div className="quick-dice-title">🧪 Швидкий тест:</div>
-						<div className="quick-dice-buttons">
-							{[1, 2, 3, 4, 5, 6].map(num => (
-								<button
-									key={num}
-									className="quick-dice-btn"
-									onClick={() => handleQuickRoll(num)}
-									disabled={diceAnimation.isRolling}
-									title={`Швидко кинути ${num}`}
-								>
-									{num}
-								</button>
-							))}
-						</div>
-					</div>
-				)}
 			</div>
 		);
 	};
@@ -274,16 +274,33 @@ const GameBoard: React.FC<GameBoardProps> = ({
 			{/* Адаптивна дошка */}
 			<div className="cashflow-board">
 				{/* Сітка дошки */}
-				<div className="board-grid">
+				<div 
+					className="board-grid"
+					style={{ 
+						gridTemplateColumns: `repeat(${currentPlayer?.isOnFastTrack ? 5 : 7}, 1fr)`,
+						gridTemplateRows: `repeat(${currentPlayer?.isOnFastTrack ? 5 : 7}, 1fr)`
+					}}
+				>
 					{/* Клітинки по периметру */}
-					{Array.from({ length: 20 }, (_, i) => renderCell(i))}
+					{(() => {
+						const isOnFastTrack = currentPlayer?.isOnFastTrack;
+						const totalCells = isOnFastTrack ? 16 : 24;
+						const gridSize = isOnFastTrack ? 5 : 7;
+						return Array.from({ length: totalCells }, (_, i) => renderCell(i, gridSize));
+					})()}
 					
 					{/* Центр з кубиком */}
-					<div className="board-center">
+					<div 
+						className="board-center"
+						style={{ 
+							gridColumn: `2 / ${currentPlayer?.isOnFastTrack ? 5 : 7}`,
+							gridRow: `2 / ${currentPlayer?.isOnFastTrack ? 5 : 7}`
+						}}
+					>
 						<div className="center-content">
 							<div className="game-logo">
-								<h1>CASHFLOW</h1>
-								<p>The Investing Game</p>
+								<h1>{currentPlayer?.isOnFastTrack ? 'FAST TRACK' : 'CASHFLOW'}</h1>
+								<p>{currentPlayer?.isOnFastTrack ? 'The Fast Lane' : 'The Investing Game'}</p>
 							</div>
 							{renderDice()}
 						</div>

@@ -18,17 +18,20 @@ export class TransactionService {
   }
 
   // Process salary payment
-  public async processSalary(playerId: string, gameId: string, amount: number): Promise<ITransaction> {
+  public async processSalary(playerId: string, gameId: string, amount: number, playerObj?: any): Promise<ITransaction> {
     try {
       // Update player's cash
-      const player = await (Player as any).findByPlayerId(playerId);
+      const player = playerObj || await (Player as any).findByPlayerId(playerId);
       if (!player) {
         throw new Error('Player not found');
       }
 
       const previousBalance = player.finances.cash;
       player.finances.cash += amount;
-      await player.save();
+      
+      if (!playerObj) {
+        await player.save();
+      }
 
       // Create transaction record
       const transaction = await (Transaction as any).createTransaction({
@@ -53,21 +56,25 @@ export class TransactionService {
   }
 
   // Process expense payment
-  public async processExpense(playerId: string, gameId: string, amount: number, description: string, cellPosition?: number): Promise<ITransaction> {
+  public async processExpense(playerId: string, gameId: string, amount: number, description: string, cellPosition?: number, playerObj?: any): Promise<ITransaction> {
     try {
       // Update player's cash
-      const player = await (Player as any).findByPlayerId(playerId);
+      const player = playerObj || await (Player as any).findByPlayerId(playerId);
       if (!player) {
         throw new Error('Player not found');
       }
 
       if (player.finances.cash < amount) {
-        throw new Error('Insufficient funds');
+        // We still allow it to continue if playerObj is provided, as callers might handle loans
+        if (!playerObj) throw new Error('Insufficient funds');
       }
 
       const previousBalance = player.finances.cash;
       player.finances.cash -= amount;
-      await player.save();
+      
+      if (!playerObj) {
+        await player.save();
+      }
 
       // Create transaction record
       const transaction = await (Transaction as any).createTransaction({
@@ -93,21 +100,24 @@ export class TransactionService {
   }
 
   // Process asset purchase
-  public async processAssetPurchase(playerId: string, gameId: string, amount: number, assetId: string, description: string): Promise<ITransaction> {
+  public async processAssetPurchase(playerId: string, gameId: string, amount: number, assetId: string, description: string, playerObj?: any): Promise<ITransaction> {
     try {
       // Update player's cash
-      const player = await Player.findByPlayerId(playerId);
+      const player = playerObj || await (Player as any).findByPlayerId(playerId);
       if (!player) {
         throw new Error('Player not found');
       }
 
       if (player.finances.cash < amount) {
-        throw new Error('Insufficient funds for asset purchase');
+        if (!playerObj) throw new Error('Insufficient funds for asset purchase');
       }
 
       const previousBalance = player.finances.cash;
       player.finances.cash -= amount;
-      await player.save();
+      
+      if (!playerObj) {
+        await player.save();
+      }
 
       // Create transaction record
       const transaction = await Transaction.createTransaction({
@@ -133,22 +143,25 @@ export class TransactionService {
   }
 
   // Process deal transaction
-  public async processDeal(playerId: string, gameId: string, amount: number, dealId: string, description: string): Promise<ITransaction> {
+  public async processDeal(playerId: string, gameId: string, amount: number, dealId: string, description: string, playerObj?: any): Promise<ITransaction> {
     try {
       // Update player's cash
-      const player = await Player.findByPlayerId(playerId);
+      const player = playerObj || await (Player as any).findByPlayerId(playerId);
       if (!player) {
         throw new Error('Player not found');
       }
 
       const isExpense = amount < 0;
       if (isExpense && player.finances.cash < Math.abs(amount)) {
-        throw new Error('Insufficient funds for deal');
+        if (!playerObj) throw new Error('Insufficient funds for deal');
       }
 
       const previousBalance = player.finances.cash;
       player.finances.cash += amount;
-      await player.save();
+      
+      if (!playerObj) {
+        await player.save();
+      }
 
       // Create transaction record
       const transaction = await Transaction.createTransaction({
@@ -174,21 +187,24 @@ export class TransactionService {
   }
 
   // Process charity payment
-  public async processCharity(playerId: string, gameId: string, amount: number): Promise<ITransaction> {
+  public async processCharity(playerId: string, gameId: string, amount: number, playerObj?: any): Promise<ITransaction> {
     try {
       // Update player's cash
-      const player = await Player.findByPlayerId(playerId);
+      const player = playerObj || await Player.findByPlayerId(playerId);
       if (!player) {
         throw new Error('Player not found');
       }
 
       if (player.finances.cash < amount) {
-        throw new Error('Insufficient funds for charity');
+        if (!playerObj) throw new Error('Insufficient funds for charity');
       }
 
       const previousBalance = player.finances.cash;
       player.finances.cash -= amount;
-      await player.save();
+      
+      if (!playerObj) {
+        await player.save();
+      }
 
       // Create transaction record
       const transaction = await Transaction.createTransaction({
@@ -213,21 +229,24 @@ export class TransactionService {
   }
 
   // Process tax payment
-  public async processTax(playerId: string, gameId: string, amount: number, description: string = 'Tax payment'): Promise<ITransaction> {
+  public async processTax(playerId: string, gameId: string, amount: number, description: string = 'Tax payment', playerObj?: any): Promise<ITransaction> {
     try {
       // Update player's cash
-      const player = await Player.findByPlayerId(playerId);
+      const player = playerObj || await Player.findByPlayerId(playerId);
       if (!player) {
         throw new Error('Player not found');
       }
 
       if (player.finances.cash < amount) {
-        throw new Error('Insufficient funds for tax payment');
+        if (!playerObj) throw new Error('Insufficient funds for tax payment');
       }
 
       const previousBalance = player.finances.cash;
       player.finances.cash -= amount;
-      await player.save();
+      
+      if (!playerObj) {
+        await player.save();
+      }
 
       // Create transaction record
       const transaction = await Transaction.createTransaction({

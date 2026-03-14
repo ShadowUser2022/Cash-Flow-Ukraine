@@ -31,7 +31,12 @@ export const CELL_TYPES = {
 	MARKET: 'market',
 	DOODAD: 'doodad',
 	CHARITY: 'charity',
-	DREAM: 'dream'
+	DREAM: 'dream',
+	CASHFLOW_DAY: 'cashflow_day',
+	BUSINESS: 'business',
+	LAWSUIT: 'lawsuit',
+	DIVORCE: 'divorce',
+	TAX_AUDIT: 'tax_audit'
 } as const;
 
 export const DEAL_TYPES = {

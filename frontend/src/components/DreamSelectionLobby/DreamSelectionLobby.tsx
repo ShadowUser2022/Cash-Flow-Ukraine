@@ -120,7 +120,7 @@ const DreamSelectionLobby: React.FC<DreamSelectionLobbyProps> = ({
 								</div>
 								<p className="dream-description-lobby">{dream.description}</p>
 								<div className="dream-cost-lobby">
-									Ціль: ${dream.estimatedCost.toLocaleString()}
+									Ціль: ${typeof dream.estimatedCost === 'number' ? dream.estimatedCost.toLocaleString() : '0'}
 								</div>
 							</div>
 						</div>
@@ -139,7 +139,7 @@ const DreamSelectionLobby: React.FC<DreamSelectionLobbyProps> = ({
 							className="dream-confirm-button-lobby"
 							onClick={() => onDreamSelected(selectedDream)}
 						>
-							Підтвердити: {selectedDream.title}
+							Підтвердити: {typeof selectedDream.title === 'string' ? selectedDream.title : 'Обрану мрію'}
 						</button>
 					)}
 				</div>
