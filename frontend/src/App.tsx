@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useToast } from "./hooks/useToast";
+// Build trigger: mobile UI and event logic fixes
 import ToastNotifications from "./components/ToastNotifications/ToastNotifications";
 import { socketService } from "./services/socketService";
 import { SOCKET_EVENTS } from "./constants/socketEvents";
