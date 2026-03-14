@@ -120,6 +120,7 @@ const GameInterface: React.FC<GameInterfaceProps> = ({ gameId, playerId }) => {
           onExecuteTurn={handleExecuteTurn}
           onMoveToFastTrack={() => {}}
           onDiceRollComplete={handleDiceRollComplete}
+          onToggle={handleLeftSidebarToggle}
         />
       )}
       {/* Права бічна панель — окремий компонент */}
@@ -136,6 +137,7 @@ const GameInterface: React.FC<GameInterfaceProps> = ({ gameId, playerId }) => {
           game={game}
           currentPlayer={currentPlayer}
           playerId={playerId}
+          onToggle={handleRightSidebarToggle}
         />
       )}
       

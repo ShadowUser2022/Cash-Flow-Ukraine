@@ -1,6 +1,7 @@
 import React from 'react';
 import GameInteractionPanel from '../GameInteractionPanel/GameInteractionPanel';
 import type { Player } from '../../types/game';
+import { useTouchGestures, useIsMobile } from '../../hooks/useTouchGestures';
 
 interface LeftSidebarProps {
   open: boolean;
@@ -13,6 +14,7 @@ interface LeftSidebarProps {
   onMoveToFastTrack: () => void;
   onDiceRollComplete: (result: number) => void;
   onBackToLobby?: () => void;
+  onToggle?: () => void;
 }
 
 const LeftSidebar: React.FC<LeftSidebarProps> = ({
@@ -25,10 +27,24 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
   onExecuteTurn,
   onMoveToFastTrack,
   onDiceRollComplete,
-  onBackToLobby
-}) => (
-  <div className={`left-sidebar sidebar-animated${open ? ' open' : ''}`}>
-    <GameInteractionPanel
+  onBackToLobby,
+  onToggle
+}) => {
+  const isMobile = useIsMobile();
+
+  // Swipe gesture to close
+  useTouchGestures({
+    onSwipeLeft: () => {
+      if (open && onToggle) onToggle();
+    }
+  });
+
+  return (
+    <div className={`left-sidebar sidebar-animated${open ? ' open' : ''}`}>
+      {isMobile && open && (
+        <button className="sidebar-close-btn" onClick={onToggle}>✕</button>
+      )}
+      <GameInteractionPanel
       currentPlayer={currentPlayer}
       gameId={gameId}
       isMyTurn={isMyTurn}
@@ -40,6 +56,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
       onBackToLobby={onBackToLobby}
     />
   </div>
-);
+    );
+};
 
 export default LeftSidebar;

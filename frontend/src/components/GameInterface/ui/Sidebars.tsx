@@ -2,6 +2,7 @@
 // Лівий/правий сайдбари, кнопки відкриття/закриття
 
 import React from 'react';
+import { useTouchGestures } from '../../../hooks/useTouchGestures';
 
 interface SidebarsProps {
   leftSidebarOpen: boolean;
@@ -18,13 +19,21 @@ const Sidebars: React.FC<SidebarsProps> = ({
   handleRightSidebarToggle,
   children,
 }) => {
+  // Swipe logic
+  useTouchGestures({
+    onSwipeLeft: () => {
+      if (leftSidebarOpen) handleLeftSidebarToggle();
+    },
+    onSwipeRight: () => {
+      if (rightSidebarOpen) handleRightSidebarToggle();
+    }
+  });
+
   return (
     <>
       {/* Лівий сайдбар: Фінанси та гравці */}
       <div className={`sidebar left-sidebar${leftSidebarOpen ? ' open' : ' closed'}`}>
-        <button className="sidebar-toggle sidebar-toggle-btn left" onClick={handleLeftSidebarToggle}>
-          {leftSidebarOpen ? '⟨' : '⟩'}
-        </button>
+        <button className="sidebar-close-btn" onClick={handleLeftSidebarToggle}>✕</button>
         <div className="sidebar-header">
           <div className="sidebar-title">Фінанси</div>
         </div>
@@ -43,9 +52,7 @@ const Sidebars: React.FC<SidebarsProps> = ({
 
       {/* Правий сайдбар: Інформація про гру */}
       <div className={`sidebar right-sidebar${rightSidebarOpen ? ' open' : ' closed'}`}>
-        <button className="sidebar-toggle sidebar-toggle-btn right" onClick={handleRightSidebarToggle}>
-          {rightSidebarOpen ? '⟩' : '⟨'}
-        </button>
+        <button className="sidebar-close-btn" onClick={handleRightSidebarToggle}>✕</button>
         <div className="sidebar-header">
           <div className="sidebar-title">Інфо гри</div>
         </div>

@@ -226,29 +226,29 @@
 /* Адаптивність для малих телефонів */
 @media (max-width: 480px) {
 	.cashflow-board {
-		width: 98vw;
-		height: 98vh;
-		min-width: 320px;
-		min-height: 320px;
-		border-radius: 12px;
+		width: 100vw;
+		height: 100vw;
+		min-width: unset;
+		min-height: unset;
+		border-radius: 0;
 	}
 	
 	.board-grid {
-		gap: 6px;
-		padding: 8px;
+		gap: 4px;
+		padding: 4px;
 	}
 	
 	.board-center {
-		border-radius: 8px;
-		padding: 8px;
+		border-radius: 4px;
+		padding: 4px;
 	}
 	
 	.center-content {
-		gap: 8px;
+		gap: 4px;
 	}
 	
 	.board-cell {
-		border-radius: 6px;
+		border-radius: 4px;
 		padding: 2px;
 	}
 }
@@ -354,28 +354,6 @@
 	justify-content: space-between;
 }
 
-.board-center {
-	/* flex: 1;
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	justify-content: center;
-	margin: 0 25px;
-	background:
-		radial-gradient(circle at center, rgba(59, 130, 246, 0.05) 0%, transparent 70%),
-		linear-gradient(135deg, rgba(10, 10, 10, 0.95) 0%, rgba(26, 26, 46, 0.95) 100%);
-	border: 2px solid rgba(147, 197, 253, 0.15);
-	border-radius: 24px;
-	min-height: 400px;
-	max-height: 450px;
-	position: relative;
-	box-shadow:
-		inset 0 2px 8px rgba(59, 130, 246, 0.1),
-		inset 0 -2px 8px rgba(0, 0, 0, 0.3),
-		0 12px 40px rgba(0, 0, 0, 0.4),
-		0 0 80px rgba(59, 130, 246, 0.1);
-	backdrop-filter: blur(16px); */
-}
 
 .board-center::before {
 	content: '';
@@ -814,6 +792,33 @@
 	letter-spacing: 0.5px;
 	position: relative;
 	overflow: hidden;
+}
+
+@media (max-width: 900px) {
+	.roll-button {
+		position: fixed;
+		bottom: 80px; /* Над нижньою навігацією */
+		right: 20px;
+		z-index: 2100;
+		width: 60px;
+		height: 60px;
+		border-radius: 50%;
+		padding: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 0; /* Приховуємо текст */
+		box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5), 0 0 15px rgba(59, 130, 246, 0.5);
+	}
+
+	.roll-button::after {
+		content: '🎲';
+		font-size: 24px;
+	}
+	
+	.game-logo p, .game-logo h1 {
+		display: none; /* Економимо місце в центрі на мобілці */
+	}
 }
 
 .roll-button::before {
