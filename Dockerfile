@@ -10,10 +10,10 @@ WORKDIR /app
 COPY backend/package*.json ./
 
 # Install dependencies
-RUN npm ci --only=production
+RUN npm ci
 
 # Copy shared source
-COPY shared/ ../shared/
+COPY shared/ /shared/
 
 # Copy backend source
 COPY backend/ ./
@@ -21,5 +21,5 @@ COPY backend/ ./
 # Expose port (Railway встановить динамічно через env var)
 EXPOSE 3001
 
-# Start server (Railway's health check буде використовувати railway.json)
+# Start server
 CMD ["node", "cashflow-server-enhanced.js"]
