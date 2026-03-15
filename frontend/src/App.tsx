@@ -609,9 +609,18 @@ function App() {
                 </h1>
                 <p className="game-subtitle">Навчайся управляти фінансами через гру</p>
               </div>
-              <div className={`status-pill ${isConnected ? "status-online" : "status-offline"}`}>
-                <span className="status-dot"></span>
-                {isConnected ? "Онлайн" : "Офлайн"}
+              <div className="lobby-header-right">
+                <div className={`status-pill ${isConnected ? "status-online" : "status-offline"}`}>
+                  <span className="status-dot"></span>
+                  {isConnected ? "Онлайн" : "Офлайн"}
+                </div>
+                <button
+                  className="dev-mode-badge"
+                  onClick={startDeveloperMode}
+                  title="Тестовий режим розробника"
+                >
+                  🧪
+                </button>
               </div>
             </header>
 

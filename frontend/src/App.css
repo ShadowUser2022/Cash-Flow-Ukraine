@@ -2921,6 +2921,31 @@ body {
   font-weight: 400;
 }
 
+/* Lobby header right section: status + dev badge */
+.lobby-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Dev mode badge — subtle, developer-only */
+.dev-mode-badge {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  padding: 4px 7px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  opacity: 0.35;
+  transition: opacity 0.2s, border-color 0.2s;
+  line-height: 1;
+}
+.dev-mode-badge:hover {
+  opacity: 0.85;
+  border-color: rgba(255, 200, 50, 0.5);
+}
+
 /* Status pill — small, top-right */
 .status-pill {
   display: flex;

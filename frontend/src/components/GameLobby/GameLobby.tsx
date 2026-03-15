@@ -494,18 +494,7 @@ const GameLobby: React.FC<GameLobbyProps> = ({
               </button>
             </div>
 
-            {/* Тестовий режим — тільки кнопка без опису */}
-            {onStartDeveloperMode && (
-              <div className="setting-row">
-                <button
-                  className="developer-mode-btn"
-                  onClick={onStartDeveloperMode}
-                  title="Тестування механіки гри без інших гравців"
-                >
-                  🧪 Тестовий режим
-                </button>
-              </div>
-            )}
+            {/* Тестовий режим перенесено в хедер лобі (маленька кнопка 🧪) */}
           </div>
 
           {/* Хост: старт гри */}
