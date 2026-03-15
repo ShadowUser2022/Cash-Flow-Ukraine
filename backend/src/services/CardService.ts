@@ -34,13 +34,13 @@ export class CardService {
 			// ── Бізнес ──────────────────────────────────────────────────────────
 			{
 				id: `opp_${ts}_bus1`, type: 'opportunity' as const, category: 'business',
-				title: '☕ Франшиза кав'ярні',
-				description: 'Мережева кав'ярня. Перевірена модель, трафік від дня відкриття.',
+				title: '☕ Франшиза кав\'ярні',
+				description: 'Мережева кав\'ярня. Перевірена модель, трафік від дня відкриття.',
 				cost: 75000, cashFlow: 1200, downPayment: 15000,
 				requirement: { type: 'cash_minimum' as const, value: 15000, description: 'Мін. $15k' },
 				isActive: true,
 				dealData: { id: `deal_${ts}_bus1`, type: 'small' as const, category: 'business',
-					title: '☕ Франшиза кав'ярні', description: 'Готовий бізнес',
+					title: '☕ Франшиза кав\'ярні', description: 'Готовий бізнес',
 					cost: 75000, downPayment: 15000, mortgage: 60000, cashFlow: 1200, isAvailable: true }
 			},
 			{
@@ -126,7 +126,7 @@ export class CardService {
 				type: 'market' as const,
 				category: 'boom',
 				title: '🏗️ Бум нерухомості!',
-				description: 'Попит на нерухомість злетів. Продай будь-який об'єкт нерухомості зараз за 1.5x від вартості!',
+				description: 'Попит на нерухомість злетів. Продай будь-який об\'єкт нерухомості зараз за 1.5x від вартості!',
 				benefit: 50,
 				sellMultiplier: 1.5,
 				affectedAssetType: 'real_estate',
