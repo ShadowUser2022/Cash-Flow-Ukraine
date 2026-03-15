@@ -10,7 +10,7 @@ export const GAME_CONSTANTS = {
 
 	// Дошка
 	RAT_RACE_CELLS: 24,
-	FAST_TRACK_CELLS: 8,
+	FAST_TRACK_CELLS: 16,
 
 	// WebRTC
 	ICE_SERVERS: [
@@ -104,6 +104,16 @@ export const SOCKET_EVENTS = {
 	MARKET_ACTION: 'market-action',
 	MARKET_ACTION_COMPLETED: 'market-action-completed',
 	CARD_ACTION_COMPLETED: 'card-action-completed',
+
+	// Fast Track special events
+	DIVORCE_RESOLVE: 'divorce-resolve',
+	DIVORCE_APPLIED: 'divorce-applied',
+	CASHFLOW_DAY_COLLECTED: 'cashflow-day-collected',
+
+	// Asset sell events
+	SELL_DEAL: 'sell-deal',
+	DEAL_SOLD: 'deal-sold',
+	MARKET_BOOM: 'market-boom',
 
 	// Lobby events
 	PLAYER_READY: 'player-ready',

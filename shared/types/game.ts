@@ -50,6 +50,10 @@ export interface Asset {
 	downPayment?: number;
 	mortgage?: number;
 	description?: string;
+	// Поля для продажу
+	purchasePrice?: number;       // ціна купівлі (для розрахунку прибутку)
+	currentMultiplier?: number;   // ринковий множник вартості (1.0 = без змін)
+	acquiredAt?: Date;            // дата придбання
 }
 
 export interface Liability {
@@ -248,6 +252,7 @@ export interface ServerToClientEvents {
 	'player-reconnected': (data: { playerId: string; player: Player }) => void;
 	'dice-rolled': (data: { playerId: string; diceResult: number; newPosition: number; cellEffect?: any; gameState: Game }) => void;
 	'deal-completed': (data: { playerId: string; dealId: string; result: any; gameState: Game }) => void;
+	'deal-sold': (data: { playerId: string; assetId: string; assetName: string; amountReceived: number; profit: number; gameState: Game }) => void;
 	'new-deals': (deals: Deal[]) => void;
 	'cell-action': (action: any) => void;
 	'negotiation-proposal': (data: { negotiationId: string; proposerId: string; proposal: NegotiationProposal }) => void;
@@ -298,6 +303,7 @@ export interface ClientToServerEvents {
 	// New game mechanics events
 	'execute-turn': (data: { gameId: string; playerId: string }) => void;
 	'buy-deal': (data: { gameId: string; playerId: string; dealId: string }) => void;
+	'sell-deal': (data: { gameId: string; playerId: string; assetId: string; sellPrice?: number }) => void;
 	'move-to-fast-track': (data: { gameId: string; playerId: string }) => void;
 	'generate-deals': (data: { gameId: string; count?: number }) => void;
 

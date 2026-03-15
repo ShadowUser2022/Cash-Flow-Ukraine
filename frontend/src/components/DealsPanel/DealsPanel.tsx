@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import useGameStore from '../../store/gameStore';
+import { socketService } from '../../services/socketService';
+import { useDeals } from '../../hooks/useDeals';
 import type { Deal, Player, Asset } from '../../types';
 import './DealsPanel.css';
 
@@ -8,13 +10,25 @@ interface DealsPanelProps {
 }
 
 export const DealsPanel: React.FC<DealsPanelProps> = ({ playerId }) => {
-  const { 
-    game, 
-    currentDeals,
-    addNotification 
+  const {
+    game,
+    addNotification
   } = useGameStore();
+  const { buyDeal: executeBuyDeal } = useDeals();
+
+  // Derive available deals from game.deals (works for both online & offline)
+  const availableDeals = game?.deals?.filter((d: Deal) => d.isAvailable !== false) || [];
   
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
+  const [sellModal, setSellModal] = useState<{
+    isOpen: boolean;
+    asset: Asset | null;
+  }>({ isOpen: false, asset: null });
+  const [lastSoldInfo, setLastSoldInfo] = useState<{
+    assetName: string;
+    amountReceived: number;
+    profit: number;
+  } | null>(null);
   const [negotiationModal, setNegotiationModal] = useState<{
     isOpen: boolean;
     deal: Deal | null;
@@ -24,6 +38,23 @@ export const DealsPanel: React.FC<DealsPanelProps> = ({ playerId }) => {
     deal: null,
     targetPlayer: null
   });
+
+  // Listen for deal-sold confirmation from server
+  useEffect(() => {
+    if (!socketService.isGameConnected) return;
+    const handleDealSold = (data: any) => {
+      setLastSoldInfo({
+        assetName: data.assetName || 'Актив',
+        amountReceived: data.amountReceived || 0,
+        profit: data.profit || 0,
+      });
+      setSellModal({ isOpen: false, asset: null });
+      // Auto-hide sold info after 5s
+      setTimeout(() => setLastSoldInfo(null), 5000);
+    };
+    socketService.onGameEvent('deal-sold' as any, handleDealSold);
+    return () => socketService.offGameEvent('deal-sold' as any, handleDealSold);
+  }, []);
 
   const currentPlayer = game?.players.find((p: Player) => p.id === playerId);
   
@@ -42,31 +73,51 @@ export const DealsPanel: React.FC<DealsPanelProps> = ({ playerId }) => {
     return currentPlayer.finances.cash >= downPayment;
   };
 
-  const handleBuyDeal = (deal: Deal) => {
+  const handleBuyDeal = async (deal: Deal) => {
     if (!canAffordDeal(deal)) {
       addNotification({
         type: 'error',
         title: 'Недостатньо коштів',
-        message: `Недостатньо коштів для ${deal.title}`
+        message: `Потрібно $${(deal.downPayment || deal.cost).toLocaleString()} для «${deal.title}»`
       });
       return;
     }
-
-    // This would be handled by socketService.buyDeal() in the parent component
-    addNotification({
-      type: 'success',
-      title: 'Угода придбана',
-      message: `Успішно придбано ${deal.title}`
-    });
+    await executeBuyDeal(deal.id);
   };
 
   const handleSellAsset = (asset: Asset) => {
-    // This would need to be implemented in the socket service
-    addNotification({
-      type: 'success',
-      title: 'Актив продано',
-      message: `Успішно продано ${asset.name}`
-    });
+    // Open confirmation modal with sell price info
+    setSellModal({ isOpen: true, asset });
+  };
+
+  const confirmSellAsset = () => {
+    if (!game || !sellModal.asset) return;
+    const asset = sellModal.asset;
+    // sellPrice uses currentMultiplier if set (market boom applied)
+    const multiplier = (asset as any).currentMultiplier ?? 1.0;
+    const rawSellPrice = Math.floor(asset.cost * multiplier);
+    try {
+      socketService.sellAsset(game.id, currentPlayer!.id, asset.id, rawSellPrice);
+      addNotification({
+        type: 'info',
+        title: '⏳ Продаємо актив...',
+        message: `Відправлено запит на продаж "${asset.name}" за $${rawSellPrice.toLocaleString()}`
+      });
+    } catch (err) {
+      addNotification({ type: 'error', title: 'Помилка', message: 'Не вдалося продати актив' });
+      setSellModal({ isOpen: false, asset: null });
+    }
+  };
+
+  const getSellPrice = (asset: Asset): number => {
+    const multiplier = (asset as any).currentMultiplier ?? 1.0;
+    return Math.floor(asset.cost * multiplier);
+  };
+
+  const getMultiplierLabel = (asset: Asset): string | null => {
+    const m = (asset as any).currentMultiplier;
+    if (!m || m === 1.0) return null;
+    return m > 1.0 ? `🚀 ×${m} (Бум!)` : `📉 ×${m} (Обвал)`;
   };
 
   const handleNegotiate = (deal: Deal) => {
@@ -115,13 +166,13 @@ export const DealsPanel: React.FC<DealsPanelProps> = ({ playerId }) => {
       <div className="card stats-card">
         <h3>💰 Market Deals</h3>
         <div className="deals-stats">
-          <span>Available: {currentDeals.length}</span>
+          <span>Available: {availableDeals.length}</span>
           <span>Your Cash: {formatCurrency(currentPlayer.finances.cash)}</span>
         </div>
       </div>
 
       <div className="deals-grid">
-        {currentDeals.map((deal: Deal) => (
+        {availableDeals.map((deal: Deal) => (
           <div 
             key={deal.id} 
             className={`card deal-card card-clickable ${selectedDeal?.id === deal.id ? 'active' : ''} ${canAffordDeal(deal) ? '' : 'disabled'}`}
@@ -181,38 +232,127 @@ export const DealsPanel: React.FC<DealsPanelProps> = ({ playerId }) => {
         ))}
       </div>
 
+      {/* Last sold notification */}
+      {lastSoldInfo && (
+        <div className="card stats-card" style={{ border: '2px solid #4CAF50', background: '#1a2e1a' }}>
+          <h4>✅ Актив продано!</h4>
+          <p><strong>{lastSoldInfo.assetName}</strong></p>
+          <p>Отримано: {formatCurrency(lastSoldInfo.amountReceived)}</p>
+          <p style={{ color: lastSoldInfo.profit >= 0 ? '#4CAF50' : '#F44336' }}>
+            Прибуток: {lastSoldInfo.profit >= 0 ? '+' : ''}{formatCurrency(lastSoldInfo.profit)}
+          </p>
+        </div>
+      )}
+
       {currentPlayer.finances.assets.length > 0 && (
         <div className="player-assets">
           <div className="card stats-card">
-            <h4>Your Assets</h4>
+            <h4>🏦 Ваші активи ({currentPlayer.finances.assets.length})</h4>
           </div>
           <div className="assets-grid">
-            {currentPlayer.finances.assets.map((asset: Asset) => (
-              <div key={asset.id} className="card asset-card">
-                <div className="asset-header">
-                  <span className="asset-icon">{getDealIcon(asset.type)}</span>
-                  <h5>{asset.name}</h5>
-                </div>
-                <div className="asset-info">
-                  <div className="asset-row">
-                    <span>Monthly Income:</span>
-                    <span className={`asset-value ${asset.cashFlow >= 0 ? 'positive' : 'negative'}`}>
-                      {formatCurrency(asset.cashFlow)}
-                    </span>
+            {currentPlayer.finances.assets.map((asset: Asset) => {
+              const sellPrice = getSellPrice(asset);
+              const multiplierLabel = getMultiplierLabel(asset);
+              const mortgage = (asset as any).mortgage || 0;
+              const netProceeds = sellPrice - mortgage;
+              return (
+                <div key={asset.id} className="card asset-card">
+                  <div className="asset-header">
+                    <span className="asset-icon">{getDealIcon(asset.type)}</span>
+                    <h5>{asset.name}</h5>
                   </div>
-                  <div className="asset-row">
-                    <span>Purchase Price:</span>
-                    <span className="asset-value">{formatCurrency(asset.cost)}</span>
+                  {multiplierLabel && (
+                    <div style={{ color: '#FFD700', fontWeight: 'bold', fontSize: '0.8em', marginBottom: 4 }}>
+                      {multiplierLabel}
+                    </div>
+                  )}
+                  <div className="asset-info">
+                    <div className="asset-row">
+                      <span>Дохід/міс:</span>
+                      <span className={`asset-value ${asset.cashFlow >= 0 ? 'positive' : 'negative'}`}>
+                        {formatCurrency(asset.cashFlow)}
+                      </span>
+                    </div>
+                    <div className="asset-row">
+                      <span>Ціна покупки:</span>
+                      <span className="asset-value">{formatCurrency(asset.cost)}</span>
+                    </div>
+                    <div className="asset-row">
+                      <span>Ціна продажу:</span>
+                      <span className="asset-value" style={{ color: sellPrice > asset.cost ? '#4CAF50' : sellPrice < asset.cost ? '#F44336' : 'inherit' }}>
+                        {formatCurrency(sellPrice)}
+                      </span>
+                    </div>
+                    {mortgage > 0 && (
+                      <div className="asset-row">
+                        <span>Іпотека:</span>
+                        <span className="asset-value negative">−{formatCurrency(mortgage)}</span>
+                      </div>
+                    )}
+                    {mortgage > 0 && (
+                      <div className="asset-row" style={{ fontWeight: 'bold' }}>
+                        <span>Чисто на руки:</span>
+                        <span className={`asset-value ${netProceeds >= 0 ? 'positive' : 'negative'}`}>
+                          {formatCurrency(netProceeds)}
+                        </span>
+                      </div>
+                    )}
                   </div>
+                  <button
+                    className="deal-btn sell-btn"
+                    onClick={() => handleSellAsset(asset)}
+                    disabled={netProceeds < 0}
+                    title={netProceeds < 0 ? 'Іпотека перевищує ціну продажу' : `Продати за ${formatCurrency(sellPrice)}`}
+                  >
+                    💸 Продати
+                  </button>
                 </div>
-                <button 
-                  className="deal-btn sell-btn"
-                  onClick={() => handleSellAsset(asset)}
-                >
-                  Sell
-                </button>
-              </div>
-            ))}
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Sell Confirmation Modal */}
+      {sellModal.isOpen && sellModal.asset && (
+        <div className="modal-overlay">
+          <div className="card modal-card" style={{ maxWidth: 380 }}>
+            <div className="modal-header">
+              <h3>💸 Продати актив</h3>
+              <button className="close-btn" onClick={() => setSellModal({ isOpen: false, asset: null })}>✕</button>
+            </div>
+            <div className="modal-content">
+              <p><strong>{sellModal.asset.name}</strong></p>
+              {(() => {
+                const a = sellModal.asset!;
+                const sp = getSellPrice(a);
+                const ml = getMultiplierLabel(a);
+                const mort = (a as any).mortgage || 0;
+                const net = sp - mort;
+                const purchaseP = (a as any).purchasePrice || a.cost;
+                const profit = net - purchaseP;
+                return (
+                  <div style={{ fontSize: '0.9em', lineHeight: 1.7 }}>
+                    {ml && <p style={{ color: '#FFD700' }}>{ml}</p>}
+                    <p>Ціна продажу: <strong>{formatCurrency(sp)}</strong></p>
+                    {mort > 0 && <p>Залишок іпотеки: <strong style={{ color: '#F44336' }}>−{formatCurrency(mort)}</strong></p>}
+                    <p>Отримаєте: <strong style={{ color: net >= 0 ? '#4CAF50' : '#F44336' }}>{formatCurrency(net)}</strong></p>
+                    <p>Прибуток/збиток: <strong style={{ color: profit >= 0 ? '#4CAF50' : '#F44336' }}>
+                      {profit >= 0 ? '+' : ''}{formatCurrency(profit)}
+                    </strong></p>
+                    <p style={{ color: '#aaa', fontSize: '0.85em' }}>⚠️ Пасивний дохід зменшиться на {formatCurrency(a.cashFlow)}/міс</p>
+                  </div>
+                );
+              })()}
+            </div>
+            <div className="modal-actions" style={{ display: 'flex', gap: 8, padding: '12px 0 0' }}>
+              <button className="deal-btn cancel-btn" onClick={() => setSellModal({ isOpen: false, asset: null })}>
+                Скасувати
+              </button>
+              <button className="deal-btn sell-btn" onClick={confirmSellAsset}>
+                ✅ Підтвердити продаж
+              </button>
+            </div>
           </div>
         </div>
       )}

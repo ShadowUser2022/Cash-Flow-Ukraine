@@ -128,15 +128,31 @@ export class GameMechanicsService {
 	 */
 	private static getCellEffect(game: Game, player: Player): CellEffect | undefined {
 		const position = player.isOnFastTrack ? player.fastTrackPosition : player.position;
+		// Контекст гравця для динамічних розрахунків (divorce, tax_audit)
+		const playerContext = {
+			playerCash: player.finances.cash,
+			passiveIncome: player.finances.passiveIncome
+		};
 
 		if (player.isOnFastTrack) {
 			const cell = game.board.fastTrackCells[position];
-			if (!cell || cell.type === 'cashflow_day') return undefined;
-			return CardService.generateCellEffect(cell.type);
+			if (!cell) return undefined;
+			// cashflow_day: повертаємо спеціальний ефект 'receive_money' щоб фронт показав нотифікацію
+			if (cell.type === 'cashflow_day') {
+				return {
+					type: 'receive_money' as any,
+					data: {
+						cardType: 'cashflow_day',
+						amount: player.finances.passiveIncome,
+						description: `💰 Cashflow Day: +$${player.finances.passiveIncome.toLocaleString('uk-UA')}`
+					}
+				};
+			}
+			return CardService.generateCellEffect(cell.type, playerContext);
 		} else {
 			const cell = game.board.ratRaceCells[position];
 			if (!cell || cell.type === 'payday' || (cell.type as string) === 'paycheck') return undefined;
-			return CardService.generateCellEffect(cell.type);
+			return CardService.generateCellEffect(cell.type, playerContext);
 		}
 	}
 
@@ -350,8 +366,30 @@ export class GameMechanicsService {
 						*/
 						console.log(`ℹ️ [CELL_EFFECT] Card ${cardData.cardType} drawn. Waiting for player to pay $${cost}`);
 					} else if (cardData.cardType === 'divorce') {
-						// Divorce також краще обробляти через вибір гравця
-						console.log(`ℹ️ [CELL_EFFECT] Divorce event drawn.`);
+						// Divorce: автоматичне списання 50% готівки (server-side, одразу)
+						const cashBefore = player.finances.cash;
+						const lostAmount = Math.floor(cashBefore * 0.5);
+						player.finances.cash = cashBefore - lostAmount;
+
+						// Оновлюємо картку з реальною сумою (для emit на фронт)
+						if (cardData.card) {
+							cardData.card.cost = lostAmount;
+							cardData.card.amount = lostAmount;
+						}
+
+						try {
+							await transactionService.processExpense(
+								player.id,
+								gameId,
+								lostAmount,
+								'💔 Розлучення: втрата 50% готівки',
+								undefined,
+								player
+							);
+						} catch (error) {
+							console.error('Error processing divorce transaction:', error);
+						}
+						console.log(`💔 [DIVORCE] ${player.name} lost $${lostAmount} (50% of $${cashBefore}). Remaining: $${player.finances.cash}`);
 					}
 					break;
 					
@@ -405,6 +443,94 @@ export class GameMechanicsService {
 			player.isOnFastTrack = true;
 			player.fastTrackPosition = 0;
 		}
+	}
+
+	/**
+	 * Продаж активу гравця
+	 * @param sellPrice — опціональна ціна; якщо не вказана, використовується cost * currentMultiplier
+	 */
+	public static async sellAsset(
+		game: Game,
+		playerId: string,
+		assetId: string,
+		sellPrice?: number
+	): Promise<{ success: boolean; message: string; amountReceived?: number; profit?: number }> {
+		const player = game.players.find(p => p.id === playerId);
+		if (!player) return { success: false, message: 'Гравця не знайдено' };
+
+		// Знаходимо актив у finances.assets
+		const assetIndex = player.finances.assets.findIndex(a => a.id === assetId);
+		if (assetIndex === -1) return { success: false, message: 'Актив не знайдено' };
+
+		const asset = player.finances.assets[assetIndex];
+		const multiplier = (asset as any).currentMultiplier ?? 1.0;
+		const rawSellPrice = sellPrice ?? Math.floor(asset.cost * multiplier);
+
+		// Якщо є іпотека — вираховуємо залишок боргу з виручки
+		const mortgageBalance = asset.mortgage ?? 0;
+		const netProceeds = rawSellPrice - mortgageBalance;
+
+		if (netProceeds < 0) {
+			return {
+				success: false,
+				message: `Ціна продажу $${rawSellPrice.toLocaleString()} менша за залишок іпотеки $${mortgageBalance.toLocaleString()}`
+			};
+		}
+
+		// 1. Додаємо чисті кошти гравцю
+		player.finances.cash += netProceeds;
+
+		// 2. Знімаємо cashFlow з пасивного доходу
+		if (asset.cashFlow > 0) {
+			player.finances.passiveIncome = Math.max(0, player.finances.passiveIncome - asset.cashFlow);
+		}
+
+		// 3. Видаляємо пов'язану liability (іпотека / кредит)
+		if (mortgageBalance > 0) {
+			const liabilityIndex = player.finances.liabilities.findIndex(
+				l => l.id === assetId || l.name.toLowerCase().includes(asset.name.toLowerCase())
+			);
+			if (liabilityIndex !== -1) {
+				const liability = player.finances.liabilities[liabilityIndex];
+				player.finances.expenses = Math.max(0, player.finances.expenses - liability.monthlyPayment);
+				player.finances.liabilities.splice(liabilityIndex, 1);
+			}
+		}
+
+		// 4. Видаляємо актив
+		player.finances.assets.splice(assetIndex, 1);
+
+		// 5. Розраховуємо прибуток
+		const purchasePrice = (asset as any).purchasePrice ?? asset.downPayment ?? asset.cost;
+		const profit = netProceeds - purchasePrice;
+
+		// 6. Записуємо транзакцію
+		const transactionService = TransactionService.getInstance();
+		try {
+			await transactionService.processDeal(
+				player.id,
+				game.id,
+				netProceeds,
+				'asset_sale',
+				`💰 Продаж: ${asset.name} — $${netProceeds.toLocaleString('uk-UA')} (прибуток: ${profit >= 0 ? '+' : ''}$${profit.toLocaleString('uk-UA')})`,
+				player
+			);
+		} catch (error) {
+			console.error('Error processing asset sale transaction:', error);
+		}
+
+		console.log(
+			`💰 [SELL_ASSET] ${player.name} sold "${asset.name}" for $${rawSellPrice.toLocaleString()} ` +
+			`(net: $${netProceeds.toLocaleString()}, profit: ${profit >= 0 ? '+' : ''}$${profit.toLocaleString()}). ` +
+			`New cash: $${player.finances.cash.toLocaleString()}, passiveIncome: $${player.finances.passiveIncome.toLocaleString()}`
+		);
+
+		return {
+			success: true,
+			message: `Продано "${asset.name}" за $${rawSellPrice.toLocaleString()}. Чиста виручка: $${netProceeds.toLocaleString()}`,
+			amountReceived: netProceeds,
+			profit
+		};
 	}
 
 	/**

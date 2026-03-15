@@ -70,5 +70,12 @@ export const SOCKET_EVENTS = {
 	USER_LEFT: 'user-left',
 	OFFER: 'offer',
 	ANSWER: 'answer',
-	ICE_CANDIDATE: 'ice-candidate'
+	ICE_CANDIDATE: 'ice-candidate',
+
+	// Phase 4 — sell assets, market boom, special events
+	SELL_DEAL: 'sell-deal',
+	DEAL_SOLD: 'deal-sold',
+	DIVORCE_APPLIED: 'divorce-applied',
+	CASHFLOW_DAY_COLLECTED: 'cashflow-day-collected',
+	MARKET_BOOM: 'market-boom'
 } as const;

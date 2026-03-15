@@ -282,6 +282,14 @@ class SocketService {
     });
   }
 
+  // Sell asset (Phase 4)
+  sellAsset(gameId: string, playerId: string, assetId: string, sellPrice?: number) {
+    if (!this.gameSocket) {
+      throw new Error("Game socket not connected");
+    }
+    this.gameSocket.emit("sell-deal" as any, { gameId, playerId, assetId, sellPrice });
+  }
+
   // Dream methods
   setPlayerDream(gameId: string, playerId: string, dream: any) {
     if (!this.gameSocket) {

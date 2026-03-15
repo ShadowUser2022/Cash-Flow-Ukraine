@@ -111,14 +111,31 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setP
                 return;
               }
 
+              // Build enriched description for market cards with sell mechanics
+              let description = card.description || card.text || '';
+              if (cardType === 'market') {
+                if (card.sellMultiplier) {
+                  const mult = card.sellMultiplier;
+                  const affected = card.affectedAssetType || 'all';
+                  const boomCrash = mult > 1 ? '📈 Бум!' : '📉 Обвал!';
+                  description = `${description}\n\n${boomCrash} Множник продажу ${mult}x на [${affected}]. Відкрийте "Активи" щоб продати зараз!`;
+                } else if (card.dividendMonths) {
+                  description = `${description}\n\n💰 Ви отримаєте дивіденди за ${card.dividendMonths} місяці пасивного доходу!`;
+                }
+              }
+
               setCurrentEventCard({
                 id: card.id,
                 type: cardType,
                 title: card.title || 'Подія',
-                description: card.description || card.text || '',
+                description,
                 action: (cardType === 'doodad' || cardType === 'lawsuit' || cardType === 'tax_audit' || cardType === 'divorce') ? 'Сплатити' : 'Прийняти',
                 value: card.cost || card.amount || card.value || 0,
-                details: card.description || card.text
+                details: card.description || card.text,
+                // Pass through market card sell data
+                sellMultiplier: card.sellMultiplier,
+                affectedAssetType: card.affectedAssetType,
+                dividendMonths: card.dividendMonths,
               });
               setShowEventCard(true);
             }, 1500); // Затримка 1.5 сек, щоб анімація фішки почалася
@@ -187,6 +204,73 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setP
     return () => {
       socketService.offGameEvent('game-won', handleGameWon);
     };
+  }, [playerId]);
+
+  // Прослуховуємо DEAL_SOLD — актив успішно продано
+  useEffect(() => {
+    if (!socketService.isGameConnected) return;
+
+    const handleDealSold = (data: any) => {
+      const { setGame, setCurrentPlayer } = useGameStore.getState();
+      if (data.gameState) {
+        setGame(data.gameState);
+        const updatedPlayer = data.gameState.players.find((p: any) => p.id === playerId);
+        if (updatedPlayer) setCurrentPlayer(updatedPlayer);
+      }
+      if (data.playerId === playerId) {
+        const profit = data.profit || 0;
+        toasts.transactionToast(
+          'income',
+          data.amountReceived || 0,
+          `Продано: ${data.assetName} (${profit >= 0 ? '+' : ''}$${Math.abs(profit).toLocaleString()} прибуток)`
+        );
+      }
+    };
+
+    socketService.onGameEvent('deal-sold' as any, handleDealSold);
+    return () => socketService.offGameEvent('deal-sold' as any, handleDealSold);
+  }, [playerId]);
+
+  // Прослуховуємо DIVORCE_APPLIED — розлучення (50% готівки)
+  useEffect(() => {
+    if (!socketService.isGameConnected) return;
+
+    const handleDivorceApplied = (data: any) => {
+      const { setGame, setCurrentPlayer } = useGameStore.getState();
+      if (data.gameState) {
+        setGame(data.gameState);
+        const updatedPlayer = data.gameState.players.find((p: any) => p.id === playerId);
+        if (updatedPlayer) setCurrentPlayer(updatedPlayer);
+      }
+      if (data.playerId === playerId) {
+        toasts.transactionToast('expense', data.amountLost || 0, '💔 Розлучення — втрата 50% готівки');
+      }
+    };
+
+    socketService.onGameEvent('divorce-applied' as any, handleDivorceApplied);
+    return () => socketService.offGameEvent('divorce-applied' as any, handleDivorceApplied);
+  }, [playerId]);
+
+  // Прослуховуємо MARKET_BOOM — бум/обвал ринку
+  useEffect(() => {
+    if (!socketService.isGameConnected) return;
+
+    const handleMarketBoom = (data: any) => {
+      const { setGame } = useGameStore.getState();
+      if (data.gameState) setGame(data.gameState);
+
+      const multiplier = data.sellMultiplier || 1;
+      const assetType = data.affectedAssetType || 'all';
+      const isBoom = multiplier >= 1;
+      const emoji = multiplier > 1 ? '🚀' : '📉';
+      toasts.info(
+        `${emoji} ${data.title || 'Ринкова подія'}`,
+        `${data.description || `Множник ${multiplier}x на ${assetType}`} — ${isBoom ? 'Продавайте активи!' : 'Утримайте позиції!'}`
+      );
+    };
+
+    socketService.onGameEvent('market-boom' as any, handleMarketBoom);
+    return () => socketService.offGameEvent('market-boom' as any, handleMarketBoom);
   }, [playerId]);
 
   // handleExecuteTurn: запуск ходу через бекенд
@@ -288,9 +372,20 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setP
             }
 
           } else if (cardType === 'market') {
-            // Ринкова подія — відправляємо підтвердження, бекенд обробляє зміни цін
+            // Ринкова подія — відправляємо повні дані картки на бекенд
+            // Включаємо sellMultiplier, affectedAssetType, dividendMonths якщо є
             socketService.marketAction(game.id, playerId, 'execute', { card: currentEventCard });
-            toasts.info('Ринок', currentEventCard.title || 'Ринкова подія');
+            if (currentEventCard.sellMultiplier) {
+              const mult = currentEventCard.sellMultiplier;
+              toasts.info(
+                mult > 1 ? '🚀 Ринковий бум!' : '📉 Ринковий обвал!',
+                `Відкрийте "Активи" для продажу з множником ×${mult}`
+              );
+            } else if (currentEventCard.dividendMonths) {
+              toasts.info('💰 Дивіденди!', `Отримаєте ${currentEventCard.dividendMonths} міс. пасивного доходу`);
+            } else {
+              toasts.info('Ринок', currentEventCard.title || 'Ринкова подія');
+            }
           }
 
           console.log(`📡 Картка оброблена: ${cardType}, сума $${cost}`);

@@ -65,10 +65,15 @@ export interface Deal {
 	id: string;
 	title: string;
 	description: string;
-	type: string;
-	cost?: number;
+	type?: string;
+	category: string;        // 'real_estate' | 'stocks' | 'business' | etc.
+	cost: number;
 	downPayment?: number;
 	cashFlow?: number;
+	mortgage?: number;
+	isAvailable?: boolean;
+	playerId?: string;        // who owns it after purchase
+	requirements?: Array<{ type: string; value: any }>;
 }
 
 export interface CellEffect {

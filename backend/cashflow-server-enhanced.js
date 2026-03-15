@@ -760,7 +760,24 @@ gameNamespace.on("connection", (socket) => {
         }
       }
 
-      // 7. Додатково емітимо загальний game-state
+      // 7. Перевіряємо divorce подію — emit divorce-applied (сума вже списана сервером)
+      const divorceAction = turnResult.actions.find(
+        a => a.type === 'draw_card' && a.data?.cardType === 'divorce'
+      );
+      if (divorceAction) {
+        const divorcePlayer = game.players.find(p => p.id === playerId);
+        const lostAmount = divorceAction.data?.card?.cost || divorceAction.data?.card?.amount || 0;
+        console.log(`💔 [SERVER] Emitting divorce-applied for ${playerId}, lost: $${lostAmount}`);
+        gameNamespace.to(gameId).emit('divorce-applied', {
+          playerId,
+          playerName: divorcePlayer?.name || playerId,
+          amountLost: lostAmount,
+          newCashBalance: divorcePlayer?.finances?.cash || 0,
+          gameState: game
+        });
+      }
+
+      // 8. Додатково емітимо загальний game-state
       emitGameState(gameId);
 
     } catch (error) {
@@ -788,7 +805,7 @@ gameNamespace.on("connection", (socket) => {
       const player = game.players.find(p => p.id === playerId);
 
       // Перевіряємо умову переходу на швидку доріжку: passiveIncome >= expenses
-      if (player && \!player.isOnFastTrack && player.finances) {
+      if (player && !player.isOnFastTrack && player.finances) {
         const passiveIncome = player.finances.passiveIncome || 0;
         const expenses = player.finances.expenses || 0;
         if (passiveIncome > 0 && passiveIncome >= expenses) {
@@ -1050,6 +1067,58 @@ gameNamespace.on("connection", (socket) => {
           marketResult.newCashBalance = result.finances.cash;
           marketResult.transaction = result.transaction;
           marketResult.message = `Сплачено $${card.cost.toLocaleString()} за ринкову подію`;
+        } else if (card.sellMultiplier && card.affectedAssetType) {
+          // 📈 Market Boom / Crash — оновлюємо currentMultiplier на активах гравців
+          const game = gameStore.get(gameId);
+          if (game) {
+            const affectedType = card.affectedAssetType;
+            let affectedCount = 0;
+            game.players.forEach((player) => {
+              if (!player.finances || !player.finances.assets) return;
+              player.finances.assets.forEach((asset) => {
+                if (affectedType === "all" || asset.type === affectedType) {
+                  asset.currentMultiplier = card.sellMultiplier;
+                  affectedCount++;
+                }
+              });
+            });
+            gameStore.set(gameId, game);
+            marketResult.sellMultiplier = card.sellMultiplier;
+            marketResult.affectedAssetType = affectedType;
+            marketResult.affectedCount = affectedCount;
+            marketResult.message = card.description || `Ринковий множник: ${card.sellMultiplier}x для ${affectedType}`;
+            // Емітимо спеціальну подію ринкового буму
+            gameNamespace.to(gameId).emit("market-boom", {
+              sellMultiplier: card.sellMultiplier,
+              affectedAssetType: affectedType,
+              affectedCount,
+              title: card.title,
+              description: card.description,
+              gameState: game,
+            });
+            console.log(`📈 Market boom applied: ${card.sellMultiplier}x on ${affectedType}, ${affectedCount} assets updated`);
+          }
+        } else if (card.dividendMonths && card.dividendMonths > 0) {
+          // 💰 Dividend card — виплачуємо dividendMonths × passiveIncome поточному гравцю
+          const game = gameStore.get(gameId);
+          if (game) {
+            const player = game.players.find((p) => p.id === playerId);
+            if (player && player.finances) {
+              const passiveIncome = player.finances.passiveIncome || 0;
+              const dividendAmount = passiveIncome * card.dividendMonths;
+              if (dividendAmount > 0) {
+                player.finances.cash = (player.finances.cash || 0) + dividendAmount;
+                gameStore.set(gameId, game);
+                marketResult.amountReceived = dividendAmount;
+                marketResult.newCashBalance = player.finances.cash;
+                marketResult.dividendMonths = card.dividendMonths;
+                marketResult.message = `💰 Дивіденди за ${card.dividendMonths} міс: +$${dividendAmount.toLocaleString()}`;
+                console.log(`💰 Dividends paid: $${dividendAmount} (${card.dividendMonths}mo × $${passiveIncome}/mo) to ${playerId}`);
+              } else {
+                marketResult.message = `Дивіденди: пасивний дохід = $0. Інвестуйте спочатку!`;
+              }
+            }
+          }
         }
       }
 
@@ -1194,6 +1263,108 @@ gameNamespace.on("connection", (socket) => {
         callback({ success: false, error: "Помилка отримання фінансів" });
       }
     }
+  });
+
+  // 💰 Sell deal — продаж активу гравця
+  socket.on("sell-deal", async ({ gameId, playerId, assetId, sellPrice }) => {
+    console.log(`💰 [SELL_DEAL] Player ${playerId} selling asset ${assetId} in game ${gameId}, price: ${sellPrice ?? "auto"}`);
+
+    try {
+      const game = gameStore.get(gameId);
+      if (!game) {
+        socket.emit("error", { message: "Гру не знайдено" });
+        return;
+      }
+
+      const result = await GameMechanicsService.sellAsset(game, playerId, assetId, sellPrice);
+
+      if (!result.success) {
+        socket.emit("error", { message: result.message });
+        return;
+      }
+
+      // Синхронізуємо оновлений стан гри
+      game.updatedAt = new Date();
+      gameStore.set(gameId, game);
+
+      const player = game.players.find(p => p.id === playerId);
+
+      // Emit deal-sold всім у кімнаті
+      gameNamespace.to(gameId).emit("deal-sold", {
+        playerId,
+        playerName: player?.name || playerId,
+        assetId,
+        amountReceived: result.amountReceived || 0,
+        profit: result.profit || 0,
+        newCashBalance: player?.finances?.cash || 0,
+        newPassiveIncome: player?.finances?.passiveIncome || 0,
+        message: result.message,
+        gameState: game
+      });
+
+      // Оновлюємо фінанси для фронту
+      if (player) {
+        gameNamespace.to(gameId).emit("player-finances-updated", {
+          playerId,
+          finances: player.finances
+        });
+      }
+
+      emitGameState(gameId);
+      console.log(`✅ [SELL_DEAL] Asset sold. Net: $${result.amountReceived}, Profit: $${result.profit}`);
+
+    } catch (error) {
+      console.error("Error processing sell-deal:", error);
+      socket.emit("error", { message: "Помилка при продажу активу: " + error.message });
+    }
+  });
+
+  // 💔 Divorce resolve — fallback якщо фронт хоче вручну підтвердити
+  // (у нас сума вже списана сервером, але хендлер потрібен для sync)
+  socket.on("divorce-resolve", ({ gameId, playerId }) => {
+    console.log(`💔 divorce-resolve received for ${playerId} in ${gameId}`);
+    const game = gameStore.get(gameId);
+    if (!game) return;
+
+    const player = game.players.find(p => p.id === playerId);
+    if (!player) return;
+
+    // Якщо з якоїсь причини сума ще не списана — списуємо тут
+    // (захист від race condition між execute-turn та фронтом)
+    gameNamespace.to(gameId).emit("divorce-applied", {
+      playerId,
+      playerName: player.name,
+      amountLost: 0,   // вже списано раніше
+      newCashBalance: player.finances.cash,
+      gameState: game
+    });
+    emitGameState(gameId);
+  });
+
+  // 💰 Cashflow Day collected — emit для фронту (нотифікація про дохід)
+  socket.on("cashflow-day-collect", ({ gameId, playerId }) => {
+    console.log(`💰 cashflow-day-collect for ${playerId} in ${gameId}`);
+    const game = gameStore.get(gameId);
+    if (!game) return;
+
+    const player = game.players.find(p => p.id === playerId);
+    if (!player) return;
+
+    const income = player.finances.passiveIncome || 0;
+    player.finances.cash += income;
+    game.updatedAt = new Date();
+    gameStore.set(gameId, game);
+
+    console.log(`💰 [CASHFLOW_DAY] ${player.name} +$${income}. Balance: $${player.finances.cash}`);
+
+    gameNamespace.to(gameId).emit("cashflow-day-collected", {
+      playerId,
+      playerName: player.name,
+      amountReceived: income,
+      newCashBalance: player.finances.cash,
+      gameState: game
+    });
+    emitGameState(gameId);
   });
 
   socket.on("disconnect", () => {

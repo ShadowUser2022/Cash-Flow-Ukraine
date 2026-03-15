@@ -23,9 +23,10 @@ export const useDeals = () => {
 		}
 
 		try {
-			// Developer Mode або Single Player Mode: Симулюємо покупку локально
-			if (game.id === 'DEV-MODE' || game.id === 'SINGLE-PLAYER-MODE') {
-				const modeLabel = game.id === 'DEV-MODE' ? 'DEV-MODE' : 'SINGLE-PLAYER';
+			// Developer Mode або Single Player / Offline Mode: Симулюємо покупку локально
+			const isOffline = game.id === 'DEV-MODE' || game.id === 'SINGLE-PLAYER-MODE' || game.id === 'OFFLINE-MODE';
+			if (isOffline) {
+				const modeLabel = game.id === 'DEV-MODE' ? 'DEV-MODE' : 'OFFLINE';
 				console.log(`🎮 ${modeLabel}: Симулюємо покупку активу локально`, dealId);
 				
 				// Знаходимо угоду в грі
@@ -78,10 +79,13 @@ export const useDeals = () => {
 				// Оновлюємо гравця в сторі
 				useGameStore.getState().setCurrentPlayer(updatedPlayer);
 
-				// Видаляємо угоду з доступних
+				// Видаляємо угоду з доступних + синхронізуємо game.players
 				const updatedGame = {
 					...game,
-					deals: game.deals?.map(d => 
+					players: game.players.map((p: any) =>
+						p.id === currentPlayer.id ? updatedPlayer : p
+					),
+					deals: game.deals?.map((d: any) =>
 						d.id === dealId ? { ...d, isAvailable: false, playerId: currentPlayer.id } : d
 					) || []
 				};

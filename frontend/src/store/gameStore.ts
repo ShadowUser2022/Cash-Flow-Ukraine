@@ -168,11 +168,11 @@ const useGameStore = create<GameStore>()(
         }
       },
       sellDeal: (playerId, dealId) => {
+        // dealId is treated as assetId — emit sell-deal to server
         const socket = socketService.getGameSocket();
         const { game } = get();
         if (socket && game) {
-          // Note: There's no SELL_DEAL event in SOCKET_EVENTS, using MAKE_DEAL instead
-          socket.emit(SOCKET_EVENTS.MAKE_DEAL, { gameId: game.id, playerId, dealId });
+          socket.emit(SOCKET_EVENTS.SELL_DEAL as any, { gameId: game.id, playerId, assetId: dealId });
         }
       },
       negotiateDeal: (fromPlayerId, toPlayerId, dealId, offer) => {
