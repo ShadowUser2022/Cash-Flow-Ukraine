@@ -139,11 +139,10 @@ export class GameSocketHandler {
 				diceResult: result.diceResult,
 				newPosition: result.newPosition,
 				cellEffect: result.cellEffect,
-				eventCard: result.eventCard, // Нова карта події
 				gameState: await this.gameService.getGame(gameId)
 			});
 
-			console.log(`Player ${playerId} rolled ${result.diceResult}, new position: ${result.newPosition}, event card: ${result.eventCard?.cardType}`);
+			console.log(`Player ${playerId} rolled ${result.diceResult}, new position: ${result.newPosition}, cellEffect: ${result.cellEffect?.type || 'none'}`);
 
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : 'Failed to roll dice';

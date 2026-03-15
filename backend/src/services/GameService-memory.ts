@@ -234,7 +234,7 @@ export class GameService {
 	/**
 	 * Кидання кубика та переміщення гравця з автоматичною генерацією карток подій
 	 */
-	async rollDice(gameId: string, playerId: string): Promise<{ diceResult: number; newPosition: number; cellEffect?: CellEffect; eventCard?: any } | null> {
+	async rollDice(gameId: string, playerId: string): Promise<{ diceResult: number; newPosition: number; cellEffect?: CellEffect } | null> {
 		const game = gamesStorage.get(gameId);
 		if (!game) return null;
 
@@ -248,15 +248,40 @@ export class GameService {
 
 		const result = GameMechanicsService.rollDiceAndMove(game, playerId);
 
-		// Генеруємо карту події після переміщення
-		const eventCard = await this.generateRandomEventCard(gameId, playerId);
+		// Якщо клітинка — opportunity або business, реєструємо deal у game.deals
+		// щоб гравець міг його купити через buyDeal()
+		if (result.cellEffect?.type === 'draw_card') {
+			const cardData = result.cellEffect.data as any;
+			if (
+				(cardData?.cardType === 'opportunity' || cardData?.cardType === 'business') &&
+				cardData?.card?.id
+			) {
+				const card = cardData.card;
+				const existingDeal = game.deals.find(d => d.id === card.id);
+				if (!existingDeal) {
+					game.deals.push({
+						id: card.id,
+						type: cardData.cardType === 'business' ? 'big' : 'small',
+						category: card.category || 'real_estate',
+						title: card.title,
+						description: card.description || '',
+						cost: card.cost || 0,
+						downPayment: card.amount || card.cost || 0,
+						cashFlow: card.cashFlow || 0,
+						isAvailable: true,
+						requirements: card.requirements || []
+					} as any);
+					console.log(`📋 Registered event deal in game.deals: ${card.id} (${card.title})`);
+				}
+			}
+		}
 
 		// Зберігаємо оновлену гру
 		game.updatedAt = new Date();
 		gamesStorage.set(gameId, game);
 
-		console.log(`Player ${playerId} rolled ${result.diceResult} and drew event card in game ${gameId}`);
-		return { ...result, eventCard };
+		console.log(`Player ${playerId} rolled ${result.diceResult}, position: ${result.newPosition}, cell: ${result.cellEffect?.type || 'payday'}`);
+		return result;
 	}
 
 	/**
@@ -478,7 +503,7 @@ export class GameService {
 			if (!deal) return null;
 
 			// Виконуємо покупку з перевіркою фінансів
-			const result = GameMechanicsService.buyDeal(game, playerId, dealId);
+			const result = await GameMechanicsService.buyDeal(game, playerId, dealId);
 			
 			if (result.success) {
 				// Оновлюємо розраховані фінансові показники
@@ -699,6 +724,33 @@ export class GameService {
 		let message = '';
 		let transaction = null;
 		let debtAdded = 0;
+
+		// Спеціальна обробка Розлучення: ділимо готівку навпіл
+		if (reason === 'divorce') {
+			const lostCash = Math.floor(player.finances.cash / 2);
+			player.finances.cash = player.finances.cash - lostCash;
+
+			// Також ділимо пасивний дохід від активів навпіл
+			player.finances.passiveIncome = Math.floor(player.finances.passiveIncome / 2);
+			// Залишаємо тільки половину активів
+			const halfCount = Math.ceil(player.finances.assets.length / 2);
+			player.finances.assets = player.finances.assets.slice(0, halfCount);
+
+			message = `💔 Розлучення! Втрачено $${lostCash.toLocaleString()} та половину активів`;
+			transaction = {
+				id: `divorce_${Date.now()}`,
+				playerId,
+				type: 'expense',
+				amount: lostCash,
+				description: 'Розлучення — розподіл майна',
+				recurring: false,
+				timestamp: new Date()
+			};
+			this.recalculatePlayerFinances(player);
+			game.updatedAt = new Date();
+			gamesStorage.set(gameId, game);
+			return { success: true, newCashBalance: player.finances.cash, message, transaction, debtAdded: 0 };
+		}
 
 		if (player.finances.cash >= amount) {
 			// Достатньо готівки для сплати

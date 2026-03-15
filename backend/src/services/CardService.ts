@@ -268,6 +268,24 @@ export class CardService {
 					}
 				};
 
+			case 'dream_check':
+				return {
+					type: 'draw_card',
+					data: {
+						cardType: 'dream_check',
+						card: {
+							id: `dream_${Date.now()}`,
+							type: 'dream_check',
+							category: 'victory',
+							title: '🏆 Перевірка Мрії!',
+							description: 'Ви на Швидкій доріжці! Якщо ваша готівка перевищує вартість мрії — ви перемагаєте!',
+							cost: 0,
+							isAvailable: true,
+							isDreamCheck: true
+						}
+					}
+				};
+
 			default:
 				return {
 					type: 'draw_card',

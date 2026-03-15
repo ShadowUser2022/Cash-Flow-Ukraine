@@ -185,7 +185,7 @@ class SocketService {
   }
 
   // Card action methods
-  payExpense(gameId: string, playerId: string, amount: number) {
+  payExpense(gameId: string, playerId: string, amount: number, reason?: string) {
     if (!this.gameSocket) {
       throw new Error("Game socket not connected");
     }
@@ -194,6 +194,7 @@ class SocketService {
       gameId,
       playerId,
       amount,
+      reason,
     });
   }
 

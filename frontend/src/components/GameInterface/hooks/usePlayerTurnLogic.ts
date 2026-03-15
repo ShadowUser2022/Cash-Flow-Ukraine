@@ -89,6 +89,28 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setP
           
           if (card) {
             setTimeout(() => {
+              // Спеціальна обробка dream_check — перевірка перемоги
+              if (cardType === 'dream_check') {
+                const updatedGame = useGameStore.getState().game;
+                const me = updatedGame?.players.find((p: any) => p.id === playerId);
+                const dreamCost = (me as any)?.dream?.cost || 0;
+                const hasCash = (me?.finances?.cash || 0) >= dreamCost && dreamCost > 0;
+
+                setCurrentEventCard({
+                  id: card.id,
+                  type: 'dream_check',
+                  title: hasCash ? '🏆 ВИ ПЕРЕМОГЛИ!' : '🎯 Перевірка Мрії',
+                  description: hasCash
+                    ? `Ваша готівка ($${(me?.finances?.cash || 0).toLocaleString()}) перевищує вартість мрії ($${dreamCost.toLocaleString()}). Вітаємо!`
+                    : `Для перемоги потрібно $${dreamCost.toLocaleString()}. Зараз у вас $${(me?.finances?.cash || 0).toLocaleString()}. Продовжуйте накопичувати!`,
+                  action: hasCash ? '🏆 Перемога!' : 'Продовжити',
+                  value: 0,
+                  isWin: hasCash
+                });
+                setShowEventCard(true);
+                return;
+              }
+
               setCurrentEventCard({
                 id: card.id,
                 type: cardType,
@@ -149,10 +171,19 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setP
   // Обробка вибору на картці події
   const handleEventCardAction = (accept: boolean) => {
     console.log('🃏 Дію на картці:', accept ? 'Прийнято' : 'Відхилено');
-    
+
     if (!game || !playerId) return;
 
-    
+    // Якщо це перемога — закриваємо картку, нічого не платимо
+    if (currentEventCard?.type === 'dream_check') {
+      setShowEventCard(false);
+      setCurrentEventCard(null);
+      if (!isOffline) {
+        socketService.completeTurn(game.id, playerId);
+      }
+      return;
+    }
+
     if (accept && currentEventCard) {
       const cost = currentEventCard.value || 0;
 
@@ -186,21 +217,40 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setP
       } else {
         // Онлайн логіка через сокети
         try {
-          if (currentEventCard.type === 'doodad' || currentEventCard.type === 'expense') {
+          const cardType = currentEventCard.type;
+
+          if (cardType === 'doodad' || cardType === 'expense') {
+            // Звичайні витрати
             socketService.payExpense(game.id, playerId, cost);
-            toasts.transactionToast('expense', cost, currentEventCard.title || 'Подія');
-          } else if (currentEventCard.type === 'opportunity' || currentEventCard.type === 'business') {
-            // Якщо є ID угоди, купуємо її
+            toasts.transactionToast('expense', cost, currentEventCard.title || 'Витрати');
+
+          } else if (cardType === 'lawsuit' || cardType === 'tax_audit') {
+            // Судовий позов та податкова перевірка — фіксована сума
+            socketService.payExpense(game.id, playerId, cost, currentEventCard.title);
+            toasts.transactionToast('expense', cost, currentEventCard.title || 'Штраф');
+
+          } else if (cardType === 'divorce') {
+            // Розлучення — спеціальна подія: ділимо готівку навпіл на бекенді
+            socketService.payExpense(game.id, playerId, cost, 'divorce');
+            toasts.transactionToast('expense', cost, 'Розлучення — втрата 50% готівки');
+
+          } else if (cardType === 'opportunity' || cardType === 'business') {
+            // Інвестиційна можливість — купуємо угоду
             if (currentEventCard.id) {
               socketService.buyDeal(game.id, playerId, currentEventCard.id);
               toasts.success('Угода', `Ви купили: ${currentEventCard.title}`);
             } else {
-              // Фоллбек якщо ID немає (наприклад, стара версія)
               socketService.payExpense(game.id, playerId, cost);
-              toasts.transactionToast('expense', cost, currentEventCard.title || 'Подія');
+              toasts.transactionToast('expense', cost, currentEventCard.title || 'Угода');
             }
+
+          } else if (cardType === 'market') {
+            // Ринкова подія — відправляємо підтвердження, бекенд обробляє зміни цін
+            socketService.marketAction(game.id, playerId, 'execute', { card: currentEventCard });
+            toasts.info('Ринок', currentEventCard.title || 'Ринкова подія');
           }
-          console.log(`📡 Сигнал про оплату/купівлю ($${cost}) відправлено`);
+
+          console.log(`📡 Картка оброблена: ${cardType}, сума $${cost}`);
         } catch (err) {
           console.error('💥 Помилка відправки сигналу оплати:', err);
           toasts.error('Помилка', 'Не вдалося відправити сигнал оплати');
