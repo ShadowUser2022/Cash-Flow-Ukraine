@@ -378,6 +378,7 @@ const GameLobby: React.FC<GameLobbyProps> = ({
 
   return (
     <div className="game-lobby">
+      {/* Заголовок */}
       <div className="lobby-header">
         <div className="card board-card">
           <h1>🎯 CASHFLOW Online</h1>
@@ -387,19 +388,16 @@ const GameLobby: React.FC<GameLobbyProps> = ({
               <span className="id">{gameId}</span>
             </div>
             <div className="players-count">
-              <span>
-                {game.players.length}/{game.settings.maxPlayers} гравців
-              </span>
+              <span>{game.players.length}/{game.settings.maxPlayers} гравців</span>
             </div>
           </div>
         </div>
       </div>
 
       <div className="lobby-content">
+        {/* Список гравців */}
         <div className="players-section">
-          <div className="card stats-card">
-            <h2>👥 Гравці в лобі</h2>
-          </div>
+          <h2 className="section-title">👥 Гравці в лобі</h2>
 
           <div className="players-list">
             {game.players.map((player) => {
@@ -409,146 +407,110 @@ const GameLobby: React.FC<GameLobbyProps> = ({
               return (
                 <div
                   key={player.id}
-                  className={`card lobby-card ${isCurrentPlayer ? "glow" : ""} ${player.isReady ? "success-card" : "warning-card"}`}
+                  className={`card lobby-player-card ${isCurrentPlayer ? "glow" : ""} ${player.isReady ? "success-card" : ""}`}
                 >
-                  <div className="player-info">
-                    <div className="player-name">
-                      {player.name}
-                      {isCurrentPlayer && (
-                        <span className="you-label">(Ви)</span>
-                      )}
-                      {game.hostId === player.id && (
-                        <span className="host-label">👑 Хост</span>
-                      )}
+                  <div className="player-main">
+                    <div className="player-name-row">
+                      <span className="player-name">{player.name}</span>
+                      {isCurrentPlayer && <span className="you-label">Ви</span>}
+                      {game.hostId === player.id && <span className="host-label">👑</span>}
+                      <span className={`ready-badge ${player.isReady ? "ready" : "not-ready"}`}>
+                        {player.isReady ? "✅ Готовий" : "⏳ Чекає"}
+                      </span>
                     </div>
 
-                    <div className="player-profession">
-                      <span className="profession-name">
-                        {player.profession.name}
-                      </span>
+                    <div className="player-details-row">
+                      <span className="profession-name">{player.profession.name}</span>
                       {profession && (
-                        <div className="profession-details">
-                          <span>
-                            Зарплата: {formatCurrency(profession.salary)}
-                          </span>
-                          <span>
-                            Витрати: {formatCurrency(profession.expenses)}
-                          </span>
-                        </div>
+                        <span className="profession-finances">
+                          💰 {formatCurrency(profession.salary)} &nbsp;·&nbsp; 💸 {formatCurrency(profession.expenses)}
+                        </span>
                       )}
                     </div>
 
                     {(player as any).dream && (
-                      <div className="player-dream">
-                        <span className="dream-indicator">
-                          {(player as any).dream.icon}{" "}
-                          {(player as any).dream.title}
+                      <div className="player-dream-row">
+                        <span className="dream-badge">
+                          {(player as any).dream.icon} {(player as any).dream.title}
+                          <span className="dream-cost"> · ${Number((player as any).dream.estimatedCost).toLocaleString()}</span>
                         </span>
                       </div>
                     )}
                   </div>
 
-                  <div className="player-status">
-                    <div
-                      className={`ready-indicator ${player.isReady ? "ready" : "not-ready"}`}
+                  {isHost && player.id !== playerId && (
+                    <button
+                      className="remove-player-btn"
+                      onClick={() => handleRemovePlayer(player.id)}
+                      title="Видалити гравця"
                     >
-                      {player.isReady ? "✅ Готовий" : "⏳ Не готовий"}
-                    </div>
-
-                    {isHost && player.id !== playerId && (
-                      <button
-                        className="remove-player-btn"
-                        onClick={() => handleRemovePlayer(player.id)}
-                        title="Видалити гравця"
-                      >
-                        ❌
-                      </button>
-                    )}
-                  </div>
+                      ✕
+                    </button>
+                  )}
                 </div>
               );
             })}
           </div>
         </div>
 
+        {/* Налаштування */}
         <div className="controls-section">
           <div className="card action-card">
             <h3>⚙️ Ваші налаштування</h3>
 
-            <div className="profession-control">
-              <label>Професія:</label>
+            {/* Професія */}
+            <div className="setting-row">
               <button
-                className="change-profession-btn"
+                className="setting-btn"
                 onClick={() => setShowProfessionModal(true)}
                 disabled={isReady}
+                title={isReady ? "Скасуйте готовність для зміни" : ""}
               >
-                {selectedProfession || "Обрати професію"}
+                🏢 {selectedProfession || "Обрати професію"}
               </button>
-              {isReady && (
-                <span className="disabled-hint">
-                  Для зміни професії спочатку скасуйте готовність
-                </span>
-              )}
             </div>
 
-            <div className="dream-control">
-              <label>Ваша мрія:</label>
+            {/* Мрія */}
+            <div className="setting-row">
               <button
-                className="change-dream-btn"
+                className="setting-btn"
                 onClick={() => setShowDreamModal(true)}
                 disabled={isReady}
+                title={isReady ? "Скасуйте готовність для зміни" : ""}
               >
                 {selectedDream
-                  ? `${selectedDream.icon} ${selectedDream.title}`
+                  ? `${selectedDream.icon} ${selectedDream.title} · $${Number(selectedDream.estimatedCost).toLocaleString()}`
                   : "🌟 Обрати мрію"}
               </button>
-              {selectedDream && typeof selectedDream === 'object' && 'estimatedCost' in selectedDream && (
-                <div className="dream-details">
-                  <span className="dream-goal">
-                    Ціль: ${Number(selectedDream.estimatedCost).toLocaleString()}
-                  </span>
-                </div>
-              )}
-              {isReady && (
-                <span className="disabled-hint">
-                  Для зміни мрії спочатку скасуйте готовність
-                </span>
-              )}
             </div>
 
-            <div className="ready-control">
+            {/* Кнопка готовності */}
+            <div className="setting-row">
               <button
                 className={`ready-btn ${isReady ? "ready" : "not-ready"}`}
                 onClick={handleReadyToggle}
               >
-                {isReady ? "✅ Готовий до гри" : "⏳ Позначити як готовий"}
+                {isReady ? "✅ Готовий — скасувати" : "⏳ Позначити як готовий"}
               </button>
             </div>
 
+            {/* Тестовий режим — тільки кнопка без опису */}
             {onStartDeveloperMode && (
-              <div className="developer-control">
-                <h4>🧪 Режими тестування</h4>
+              <div className="setting-row">
                 <button
                   className="developer-mode-btn"
                   onClick={onStartDeveloperMode}
-                  title="Тестування механіки гри без підключення до сервера"
+                  title="Тестування механіки гри без інших гравців"
                 >
-                  🎮 Тестовий режим (з мрією)
+                  🧪 Тестовий режим
                 </button>
-                <p className="test-hint">
-                  💡 В тестовому режимі ви можете:
-                  <br />• Обирати мрію або пропускати вибір
-                  <br />• Тестувати ігрову механіку без інших гравців
-                  <br />• Швидко перевіряти функціональність
-                </p>
               </div>
             )}
           </div>
 
+          {/* Хост: старт гри */}
           {isHost && (
-            <div className="card success-card">
-              <h3>👑 Контролі хоста</h3>
-
+            <div className="card host-controls-card">
               <button
                 className={`start-game-btn ${allPlayersReady ? "enabled" : "disabled"}`}
                 onClick={handleStartGame}
@@ -556,11 +518,8 @@ const GameLobby: React.FC<GameLobbyProps> = ({
               >
                 {allPlayersReady ? "🚀 Розпочати гру" : "⏳ Очікування гравців"}
               </button>
-
               {!allPlayersReady && (
-                <p className="start-hint">
-                  Усі гравці повинні бути готові для початку гри
-                </p>
+                <p className="start-hint">Усі гравці повинні бути готові</p>
               )}
             </div>
           )}

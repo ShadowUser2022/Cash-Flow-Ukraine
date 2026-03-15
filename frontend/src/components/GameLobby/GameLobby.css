@@ -616,3 +616,205 @@
 	border-color: #357ABD;
 	transform: translateY(-1px);
 }
+
+/* ===== ОНОВЛЕНІ СТИЛІ ЛОБІ ===== */
+
+.lobby-content {
+	display: grid;
+}
+
+.section-title {
+	color: #ffd700;
+	font-size: 1.1rem;
+	margin: 0 0 12px 0;
+}
+
+/* Картка гравця — компактна */
+.lobby-player-card {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	padding: 10px 14px;
+}
+
+.player-main {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.player-name-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+
+.player-name-row .player-name {
+	font-size: 1rem;
+	font-weight: 600;
+}
+
+/* Ready badge — маленький, не схожий на кнопку */
+.ready-badge {
+	font-size: 0.72rem;
+	padding: 2px 8px;
+	border-radius: 10px;
+	font-weight: 500;
+	margin-left: auto;
+}
+
+.ready-badge.ready {
+	background: rgba(80, 200, 80, 0.2);
+	color: #6ddd6d;
+	border: 1px solid rgba(80, 200, 80, 0.4);
+}
+
+.ready-badge.not-ready {
+	background: rgba(255, 165, 0, 0.15);
+	color: #FFA500;
+	border: 1px solid rgba(255, 165, 0, 0.3);
+}
+
+.player-details-row {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+
+.player-details-row .profession-name {
+	font-size: 0.85rem;
+	color: #FFD700;
+	font-weight: 600;
+}
+
+.profession-finances {
+	font-size: 0.78rem;
+	color: rgba(255,255,255,0.6);
+}
+
+.player-dream-row {
+	display: flex;
+}
+
+.dream-badge {
+	font-size: 0.78rem;
+	color: #FFA500;
+	padding: 2px 8px;
+	background: rgba(255, 165, 0, 0.1);
+	border-radius: 6px;
+	border: 1px solid rgba(255, 165, 0, 0.25);
+}
+
+.dream-badge .dream-cost {
+	color: rgba(255,165,0,0.7);
+}
+
+/* Налаштування — компактний флоу */
+.action-card h3 {
+	margin: 0 0 12px 0;
+	color: #ffd700;
+	font-size: 1rem;
+}
+
+.setting-row {
+	margin-bottom: 8px;
+}
+
+.setting-btn {
+	width: 100%;
+	padding: 9px 12px;
+	background: rgba(255, 215, 0, 0.1);
+	border: 1px solid rgba(255, 215, 0, 0.3);
+	color: #ffffff;
+	border-radius: 7px;
+	cursor: pointer;
+	font-size: 0.88rem;
+	font-weight: 500;
+	text-align: left;
+	transition: all 0.2s ease;
+}
+
+.setting-btn:hover:not(:disabled) {
+	background: rgba(255, 215, 0, 0.2);
+	border-color: rgba(255, 215, 0, 0.5);
+}
+
+.setting-btn:disabled {
+	opacity: 0.45;
+	cursor: not-allowed;
+}
+
+.ready-btn {
+	width: 100%;
+	padding: 10px 12px;
+	border-radius: 7px;
+	cursor: pointer;
+	font-size: 0.9rem;
+	font-weight: 600;
+	border: 2px solid;
+	transition: all 0.2s ease;
+}
+
+.ready-btn.not-ready {
+	background: rgba(255, 165, 0, 0.15);
+	border-color: #FFA500;
+	color: #FFA500;
+}
+
+.ready-btn.not-ready:hover {
+	background: rgba(255, 165, 0, 0.28);
+}
+
+.ready-btn.ready {
+	background: rgba(80, 200, 80, 0.2);
+	border-color: #6ddd6d;
+	color: #6ddd6d;
+}
+
+.ready-btn.ready:hover {
+	background: rgba(80, 200, 80, 0.32);
+}
+
+/* Хост: кнопка старту */
+.host-controls-card {
+	text-align: center;
+}
+
+.start-game-btn {
+	width: 100%;
+	padding: 12px;
+	border-radius: 8px;
+	font-size: 1rem;
+	font-weight: 700;
+	border: 2px solid;
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+.start-game-btn.enabled {
+	background: linear-gradient(45deg, #ffd700, #FFA500);
+	border-color: #ffd700;
+	color: #000;
+}
+
+.start-game-btn.enabled:hover {
+	transform: translateY(-1px);
+	box-shadow: 0 4px 16px rgba(255, 215, 0, 0.4);
+}
+
+.start-game-btn.disabled {
+	background: rgba(255,255,255,0.05);
+	border-color: rgba(255,255,255,0.15);
+	color: rgba(255,255,255,0.35);
+	cursor: not-allowed;
+}
+
+.start-hint {
+	font-size: 0.78rem;
+	color: rgba(255,255,255,0.45);
+	margin: 6px 0 0 0;
+}

@@ -50,7 +50,6 @@ export const SOCKET_EVENTS = {
 	SET_PLAYER_DREAM: 'set-player-dream',
 	GET_PLAYER_DREAM: 'get-player-dream',
 	PLAYER_DREAM_SET: 'player-dream-set',
-	GAME_WON: 'game-won',
 
 	// Lobby events
 	PLAYER_READY: 'player-ready',
