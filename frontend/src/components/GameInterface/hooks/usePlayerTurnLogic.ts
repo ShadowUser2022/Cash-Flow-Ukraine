@@ -93,7 +93,7 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setP
               if (cardType === 'dream_check') {
                 const updatedGame = useGameStore.getState().game;
                 const me = updatedGame?.players.find((p: any) => p.id === playerId);
-                const dreamCost = (me as any)?.dream?.cost || 0;
+                const dreamCost = (me as any)?.dream?.estimatedCost || (me as any)?.dream?.cost || 0;
                 const hasCash = (me?.finances?.cash || 0) >= dreamCost && dreamCost > 0;
 
                 setCurrentEventCard({
@@ -143,6 +143,49 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setP
     socketService.onGameEvent('dice-rolled', handleDiceRolled);
     return () => {
       socketService.offGameEvent('dice-rolled', handleDiceRolled);
+    };
+  }, [playerId]);
+
+  // Прослуховуємо FAST_TRACK_MOVED — гравець вийшов на швидку доріжку
+  useEffect(() => {
+    if (!socketService.isGameConnected) return;
+
+    const handleFastTrackMoved = (data: any) => {
+      const { setGame } = useGameStore.getState();
+      if (data.gameState) setGame(data.gameState);
+
+      if (data.playerId === playerId) {
+        toasts.success('🚀 Швидка доріжка!', data.message || 'Ви вийшли на Fast Track! Пасивний дохід перевищує витрати!');
+      } else {
+        const movedPlayer = data.player?.name || 'Гравець';
+        toasts.info('🚀 Fast Track', `${movedPlayer} вийшов на швидку доріжку!`);
+      }
+    };
+
+    socketService.onGameEvent('fast-track-moved', handleFastTrackMoved);
+    return () => {
+      socketService.offGameEvent('fast-track-moved', handleFastTrackMoved);
+    };
+  }, [playerId]);
+
+  // Прослуховуємо GAME_WON — хтось переміг
+  useEffect(() => {
+    if (!socketService.isGameConnected) return;
+
+    const handleGameWon = (data: any) => {
+      const { setGame } = useGameStore.getState();
+      if (data.gameState) setGame(data.gameState);
+
+      if (data.winnerId === playerId) {
+        toasts.success('🏆 ПЕРЕМОГА!', `Ви перемогли! Готівка $${data.cash?.toLocaleString()} ≥ вартість мрії $${data.dreamCost?.toLocaleString()}`);
+      } else {
+        toasts.info('🏆 Гра завершена', `${data.winnerName} переміг! Вітаємо!`);
+      }
+    };
+
+    socketService.onGameEvent('game-won', handleGameWon);
+    return () => {
+      socketService.offGameEvent('game-won', handleGameWon);
     };
   }, [playerId]);
 

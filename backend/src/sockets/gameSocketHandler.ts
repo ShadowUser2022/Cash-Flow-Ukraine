@@ -33,6 +33,9 @@ export class GameSocketHandler {
 		socket.on(SOCKET_EVENTS.CHARITY_CHOICE, this.handleCharityChoice.bind(this, socket));
 		socket.on(SOCKET_EVENTS.MARKET_ACTION, this.handleMarketAction.bind(this, socket));
 
+		// Dream events
+		socket.on(SOCKET_EVENTS.SET_PLAYER_DREAM, this.handleSetPlayerDream.bind(this, socket));
+
 		// Lobby events
 		socket.on(SOCKET_EVENTS.PLAYER_READY, this.handlePlayerReady.bind(this, socket));
 		socket.on(SOCKET_EVENTS.PROFESSION_SELECTED, this.handleProfessionSelected.bind(this, socket));
@@ -134,15 +137,31 @@ export class GameSocketHandler {
 			}
 
 			// Відправляємо результат всім гравцям
+			const gameAfterRoll = await this.gameService.getGame(gameId);
 			this.io.to(gameId).emit(SOCKET_EVENTS.DICE_ROLLED, {
 				playerId,
 				diceResult: result.diceResult,
 				newPosition: result.newPosition,
 				cellEffect: result.cellEffect,
-				gameState: await this.gameService.getGame(gameId)
+				gameState: gameAfterRoll
 			});
 
 			console.log(`Player ${playerId} rolled ${result.diceResult}, new position: ${result.newPosition}, cellEffect: ${result.cellEffect?.type || 'none'}`);
+
+			// Перевіряємо умову перемоги: гравець на dream_check + готівка >= вартість мрії
+			if (result.cellEffect?.data?.cardType === 'dream_check' && gameAfterRoll) {
+				const winPlayer = gameAfterRoll.players.find(p => p.id === playerId);
+				if (winPlayer && GameMechanicsService.checkWinCondition(winPlayer)) {
+					console.log(`🏆 Player ${winPlayer.name} WON the game\!`);
+					this.io.to(gameId).emit(SOCKET_EVENTS.GAME_WON, {
+						winnerId: playerId,
+						winnerName: winPlayer.name,
+						cash: winPlayer.finances.cash,
+						dreamCost: winPlayer.dream?.estimatedCost || 0,
+						gameState: gameAfterRoll
+					});
+				}
+			}
 
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : 'Failed to roll dice';
@@ -300,6 +319,18 @@ export class GameSocketHandler {
 				});
 			}
 
+			// Якщо гравець щойно перейшов на швидку доріжку — повідомляємо всіх
+			if (result.monthlyFinances?.fastTrackCheck?.canMove) {
+				const fastTrackPlayer = result.game.players.find(p => p.id === playerId);
+				console.log(`🚀 Player ${playerId} transitioned to Fast Track!`);
+				this.io.to(gameId).emit(SOCKET_EVENTS.FAST_TRACK_MOVED, {
+					playerId,
+					player: fastTrackPlayer,
+					gameState: result.game,
+					message: result.monthlyFinances.fastTrackCheck.message
+				});
+			}
+
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : 'Failed to complete turn';
 			console.error('Error completing turn:', error);
@@ -434,6 +465,27 @@ export class GameSocketHandler {
 				message: errorMessage,
 				code: 'FAST_TRACK_ERROR'
 			});
+		}
+	}
+
+	private async handleSetPlayerDream(socket: Socket, data: { gameId: string; playerId: string; dream: any }) {
+		try {
+			const { gameId, playerId, dream } = data;
+
+			const success = await this.gameService.setPlayerDream(gameId, playerId, dream);
+
+			if (success) {
+				socket.emit(SOCKET_EVENTS.PLAYER_DREAM_SET, { playerId, dream });
+			} else {
+				socket.emit(SOCKET_EVENTS.ERROR, {
+					message: 'Не вдалося встановити мрію',
+					code: 'SET_DREAM_FAILED'
+				});
+			}
+		} catch (error) {
+			const errorMessage = error instanceof Error ? error.message : 'Failed to set dream';
+			console.error('Error setting player dream:', error);
+			socket.emit(SOCKET_EVENTS.ERROR, { message: errorMessage, code: 'SET_DREAM_ERROR' });
 		}
 	}
 

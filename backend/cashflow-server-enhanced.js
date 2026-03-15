@@ -743,7 +743,24 @@ gameNamespace.on("connection", (socket) => {
         turnResult
       });
 
-      // 6. Додатково емітимо загальний game-state
+      // 6. Перевіряємо умову перемоги (dream_check + cash >= dreamCost)
+      const winCheckPlayer = game.players.find(p => p.id === playerId);
+      const isDreamCheck = cellEffect && cellEffect.data && cellEffect.data.cardType === "dream_check";
+      if (isDreamCheck && winCheckPlayer) {
+        const dreamCost = winCheckPlayer.dream && winCheckPlayer.dream.estimatedCost ? winCheckPlayer.dream.estimatedCost : 0;
+        if (dreamCost > 0 && winCheckPlayer.finances.cash >= dreamCost && winCheckPlayer.isOnFastTrack) {
+          console.log(`🏆 Player ${winCheckPlayer.name} WON the game\! Cash: ${winCheckPlayer.finances.cash} >= Dream: ${dreamCost}`);
+          gameNamespace.to(gameId).emit("game-won", {
+            winnerId: playerId,
+            winnerName: winCheckPlayer.name,
+            cash: winCheckPlayer.finances.cash,
+            dreamCost: dreamCost,
+            gameState: game
+          });
+        }
+      }
+
+      // 7. Додатково емітимо загальний game-state
       emitGameState(gameId);
 
     } catch (error) {
@@ -766,10 +783,43 @@ gameNamespace.on("connection", (socket) => {
   socket.on("turn-completed", ({ gameId, playerId }) => {
     console.log(`🎯 Turn completed for player ${playerId} in game ${gameId}`);
 
-    // Тут можна додати логіку переходу до наступного гравця
-    // Поки що просто повідомляємо всіх гравців
+    const game = gameStore.get(gameId);
+    if (game) {
+      const player = game.players.find(p => p.id === playerId);
+
+      // Перевіряємо умову переходу на швидку доріжку: passiveIncome >= expenses
+      if (player && \!player.isOnFastTrack && player.finances) {
+        const passiveIncome = player.finances.passiveIncome || 0;
+        const expenses = player.finances.expenses || 0;
+        if (passiveIncome > 0 && passiveIncome >= expenses) {
+          player.isOnFastTrack = true;
+          player.fastTrackPosition = 0;
+          game.updatedAt = new Date();
+          gameStore.set(gameId, game);
+          console.log(`🚀 Player ${player.name} transitioned to Fast Track\! passiveIncome=${passiveIncome} >= expenses=${expenses}`);
+          gameNamespace.to(gameId).emit("fast-track-moved", {
+            playerId,
+            player,
+            gameState: game,
+            message: `🎉 ${player.name} вийшов на швидку доріжку\! Пасивний дохід $${passiveIncome} >= витрат $${expenses}`
+          });
+        }
+      }
+
+      // Переходимо до наступного гравця
+      const players = game.players;
+      const currentIndex = players.findIndex(p => p.id === playerId);
+      const nextIndex = (currentIndex + 1) % players.length;
+      game.currentPlayer = players[nextIndex].id;
+      game.turn = (game.turn || 0) + 1;
+      game.updatedAt = new Date();
+      gameStore.set(gameId, game);
+    }
+
     gameNamespace.to(gameId).emit("turn-completed", {
       playerId,
+      currentPlayer: game ? game.currentPlayer : null,
+      gameState: game,
       message: `Гравець ${playerId} завершив хід`,
       timestamp: new Date().toISOString(),
     });

@@ -422,8 +422,9 @@ export class GameMechanicsService {
 	public static checkWinCondition(player: Player): boolean {
 		if (!player.isOnFastTrack) return false;
 
-		// Умова перемоги: пасивний дохід >= $50,000 або досягнення фінансової мрії
-		return player.finances.passiveIncome >= 50000;
+		// Умова перемоги: готівка >= вартість мрії (за правилами Cashflow Kiyosaki)
+		const dreamCost = player.dream?.estimatedCost || 0;
+		return dreamCost > 0 && player.finances.cash >= dreamCost;
 	}
 
 	/**

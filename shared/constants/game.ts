@@ -90,6 +90,11 @@ export const SOCKET_EVENTS = {
 	MOVE_TO_FAST_TRACK: 'move-to-fast-track',
 	FAST_TRACK_MOVED: 'fast-track-moved',
 	GENERATE_DEALS: 'generate-deals',
+	GAME_WON: 'game-won',
+
+	// Dream events
+	SET_PLAYER_DREAM: 'set-player-dream',
+	PLAYER_DREAM_SET: 'player-dream-set',
 
 	// Card action events
 	PAY_EXPENSE: 'pay-expense',

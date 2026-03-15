@@ -610,6 +610,24 @@ export class GameService {
 	}
 
 	/**
+	 * Встановлення мрії гравця
+	 */
+	async setPlayerDream(gameId: string, playerId: string, dream: { id: string; title: string; description: string; icon: string; category: string; estimatedCost: number }): Promise<boolean> {
+		const game = gamesStorage.get(gameId);
+		if (!game) return false;
+
+		const player = game.players.find(p => p.id === playerId);
+		if (!player) return false;
+
+		player.dream = dream as any;
+		game.updatedAt = new Date();
+		gamesStorage.set(gameId, game);
+
+		console.log(`🌟 Player ${player.name} set dream: ${dream.title} ($${dream.estimatedCost})`);
+		return true;
+	}
+
+	/**
 	 * Перевірка умови переходу на швидку доріжку з поновленими розрахунками
 	 */
 	async checkFastTrackConditionUpdated(gameId: string, playerId: string): Promise<{ canMove: boolean; passiveIncome: number; expenses: number; message: string }> {
