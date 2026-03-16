@@ -29,6 +29,16 @@ register({
 const app = express();
 const server = http.createServer(app);
 
+// 🎲 Генератор короткого коду кімнати (6 символів, без схожих: 0/O, 1/I)
+function generateRoomCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
+
 // Import TypeScript services
 const GameMechanicsService = require('./src/services/GameMechanicsService.ts').GameMechanicsService;
 const CardService = require('./src/services/CardService.ts').CardService;
@@ -111,8 +121,7 @@ app.post("/api/games/create", (req, res) => {
     });
   }
 
-  const gameId =
-    "game-" + Date.now() + "-" + Math.random().toString(36).substr(2, 9);
+  const gameId = generateRoomCode();
   const gameData = {
     id: gameId,
     hostId,
@@ -422,7 +431,7 @@ app.post("/api/games", (req, res) => {
     return res.status(400).json({ error: "Host ID is required" });
   }
 
-  const gameId = "game-" + Date.now();
+  const gameId = generateRoomCode();
   res.status(201).json({
     success: true,
     game: {

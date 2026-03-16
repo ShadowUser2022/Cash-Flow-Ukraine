@@ -50,30 +50,58 @@
 }
 
 
-.game-id {
-	background: rgba(255, 215, 0, 0.2);
-	padding: 6px 12px;
-	border-radius: 6px;
-	backdrop-filter: blur(10px);
-	border: 1px solid rgba(255, 215, 0, 0.3);
-	font-size: 0.8rem;
+.game-id-block {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	background: rgba(255, 215, 0, 0.12);
+	padding: 8px 14px;
+	border-radius: 8px;
+	border: 1px solid rgba(255, 215, 0, 0.4);
+	flex-wrap: wrap;
 }
 
-.game-id .label {
+.game-id-label {
 	font-weight: 500;
-	margin-right: 8px;
-	color: var(--text-primary);
+	color: rgba(255, 215, 0, 0.75);
+	font-size: 0.8rem;
+	white-space: nowrap;
 }
 
-.game-id .id {
+.game-id-code {
 	font-family: 'Courier New', monospace;
-	font-size: 1rem;
+	font-size: 1.3rem;
 	font-weight: bold;
-	background: rgba(255, 215, 0, 0.3);
-	padding: 2px 6px;
-	border-radius: 4px;
-	letter-spacing: 1px;
-	color: var(--primary-text);
+	background: rgba(255, 215, 0, 0.2);
+	padding: 3px 10px;
+	border-radius: 6px;
+	letter-spacing: 4px;
+	color: #FFD700;
+	border: 1px solid rgba(255, 215, 0, 0.5);
+	text-shadow: 0 0 8px rgba(255, 215, 0, 0.35);
+}
+
+.share-btn {
+	background: linear-gradient(135deg, #B8860B, #DAA520);
+	color: #1a1a1a;
+	border: none;
+	padding: 6px 14px;
+	border-radius: 6px;
+	font-weight: 700;
+	font-size: 0.8rem;
+	cursor: pointer;
+	transition: all 0.2s ease;
+	white-space: nowrap;
+}
+
+.share-btn:hover {
+	background: linear-gradient(135deg, #DAA520, #FFD700);
+	transform: scale(1.04);
+}
+
+.share-btn.copied {
+	background: linear-gradient(135deg, #2d7a2d, #3a9a3a);
+	color: #fff;
 }
 
 .players-count {
@@ -499,15 +527,20 @@
 		gap: 6px;
 	}
 
-	.game-id,
+	.game-id-block,
 	.players-count {
-		padding: 5px 10px;
+		padding: 6px 10px;
 		font-size: 0.75rem;
 	}
 
-	.game-id .id {
-		font-size: 0.9rem;
-		padding: 2px 4px;
+	.game-id-code {
+		font-size: 1.1rem;
+		letter-spacing: 3px;
+	}
+
+	.share-btn {
+		font-size: 0.75rem;
+		padding: 5px 10px;
 	}
 
 	.player-info {

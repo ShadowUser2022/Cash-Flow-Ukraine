@@ -36,6 +36,32 @@ const GameLobby: React.FC<GameLobbyProps> = ({
     undefined,
   );
   const [showDreamModal, setShowDreamModal] = useState(false);
+  const [codeCopied, setCodeCopied] = useState(false);
+
+  const shareLink = `${window.location.origin}?join=${gameId}`;
+
+  const handleCopyLink = async () => {
+    try {
+      if (navigator.share) {
+        // Мобільний нативний share sheet
+        await navigator.share({
+          title: "Cash Flow Ukraine — запрошення в гру",
+          text: `Приєднуйся до гри! Код: ${gameId}`,
+          url: shareLink,
+        });
+      } else {
+        // Десктоп — копіюємо в буфер
+        await navigator.clipboard.writeText(shareLink);
+        setCodeCopied(true);
+        setTimeout(() => setCodeCopied(false), 2000);
+      }
+    } catch {
+      // Fallback: копіюємо просто код
+      await navigator.clipboard.writeText(gameId);
+      setCodeCopied(true);
+      setTimeout(() => setCodeCopied(false), 2000);
+    }
+  };
 
   const currentPlayer = game?.players.find((p) => p.id === playerId);
   const isHost = game?.hostId === playerId;
@@ -383,9 +409,16 @@ const GameLobby: React.FC<GameLobbyProps> = ({
         <div className="card board-card">
           <h1>🎯 CASHFLOW Online</h1>
           <div className="game-info">
-            <div className="game-id">
-              <span className="label">Код гри:</span>
-              <span className="id">{gameId}</span>
+            <div className="game-id-block">
+              <span className="game-id-label">Код гри:</span>
+              <span className="game-id-code">{gameId}</span>
+              <button
+                className={`share-btn ${codeCopied ? "copied" : ""}`}
+                onClick={handleCopyLink}
+                title="Поділитись посиланням"
+              >
+                {codeCopied ? "✅ Скопійовано!" : "🔗 Запросити"}
+              </button>
             </div>
             <div className="players-count">
               <span>{game.players.length}/{game.settings.maxPlayers} гравців</span>

@@ -147,6 +147,18 @@ function App() {
     };
   }, [setGame, setStoreConnectionStatus]);
 
+  // 🔗 Auto-fill join code from URL ?join=CODE
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const codeFromUrl = params.get("join");
+    if (codeFromUrl && codeFromUrl.trim()) {
+      setJoinGameId(codeFromUrl.trim().toUpperCase());
+      // Прибираємо параметр з URL без перезавантаження сторінки
+      const cleanUrl = window.location.origin + window.location.pathname;
+      window.history.replaceState({}, "", cleanUrl);
+    }
+  }, []);
+
   // Генерація унікального ID гравця
   useEffect(() => {
     console.log("🆔 Player ID generation check:");
