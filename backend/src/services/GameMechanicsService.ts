@@ -74,10 +74,22 @@ export class GameMechanicsService {
 
 		console.log(`✅ Game board initialized for game ${game.id}`);
 	}
-	public static rollDiceAndMove(game: Game, playerId: string): { diceResult: number; newPosition: number; cellEffect?: CellEffect; passedPayday?: boolean } {
+	public static rollDiceAndMove(game: Game, playerId: string): { diceResult: number; newPosition: number; cellEffect?: CellEffect; passedPayday?: boolean; skipped?: boolean } {
 		const player = game.players.find(p => p.id === playerId);
 		if (!player) {
 			throw new Error('Гравця не знайдено');
+		}
+
+		// Перевірка пропуску ходу (downsize)
+		if ((player as any).skipTurns && (player as any).skipTurns > 0) {
+			(player as any).skipTurns -= 1;
+			const remaining = (player as any).skipTurns;
+			console.log(`⏭️ [SKIP] ${player.name} skipped turn. Remaining skips: ${remaining}`);
+			return {
+				diceResult: 0,
+				newPosition: player.isOnFastTrack ? player.fastTrackPosition : player.position,
+				skipped: true
+			};
 		}
 
 		const diceResult = Math.floor(Math.random() * GAME_CONSTANTS.DICE_SIDES) + 1;
@@ -365,6 +377,22 @@ export class GameMechanicsService {
 						player.finances.cash -= cost;
 						*/
 						console.log(`ℹ️ [CELL_EFFECT] Card ${cardData.cardType} drawn. Waiting for player to pay $${cost}`);
+					} else if (cardData.cardType === 'baby') {
+						// Baby: постійне збільшення витрат на $500/місяць
+						const babyCost = 500;
+						player.finances.expenses += babyCost;
+						const babyCount = ((player as any).childrenCount || 0) + 1;
+						(player as any).childrenCount = babyCount;
+						console.log(`👶 [BABY] ${player.name} had a baby! Expenses +$${babyCost}/mo. Total children: ${babyCount}. New expenses: $${player.finances.expenses}`);
+					} else if (cardData.cardType === 'downsize') {
+						// Downsize: пропустити 2 ходи, якщо на Fast Track — повернутись до Rat Race
+						(player as any).skipTurns = 2;
+						if (player.isOnFastTrack) {
+							player.isOnFastTrack = false;
+							player.position = 0;
+							console.log(`😱 [DOWNSIZE] ${player.name} removed from Fast Track, returned to Rat Race.`);
+						}
+						console.log(`😱 [DOWNSIZE] ${player.name} downsized. Will skip 2 turns.`);
 					} else if (cardData.cardType === 'divorce') {
 						// Divorce: автоматичне списання 50% готівки (server-side, одразу)
 						const cashBefore = player.finances.cash;

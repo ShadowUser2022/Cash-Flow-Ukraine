@@ -581,6 +581,43 @@ export class CardService {
 					}
 				};
 
+			case 'baby':
+				return {
+					type: 'draw_card',
+					data: {
+						cardType: 'baby',
+						card: {
+							id: `baby_${Date.now()}`,
+							type: 'baby',
+							category: 'life_event',
+							title: '👶 Поповнення в родині!',
+							description: 'Вітаємо! У вас народилася дитина. Щомісячні витрати збільшуються на $500 назавжди.',
+							cost: 500,
+							amount: 500,
+							isMonthlyExpense: true,
+							isAvailable: true
+						}
+					}
+				};
+
+			case 'downsize':
+				return {
+					type: 'draw_card',
+					data: {
+						cardType: 'downsize',
+						card: {
+							id: `downsize_${Date.now()}`,
+							type: 'downsize',
+							category: 'life_event',
+							title: '😱 Звільнення!',
+							description: 'Ви втратили роботу або бізнес зазнав невдачі. Пропускаєте 2 ходи.',
+							cost: 0,
+							skipTurns: 2,
+							isAvailable: true
+						}
+					}
+				};
+
 			case 'charity':
 				return {
 					type: 'choose_charity',

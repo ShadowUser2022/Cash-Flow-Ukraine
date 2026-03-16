@@ -14,6 +14,8 @@ export interface Player {
 	isConnected: boolean;
 	avatar?: string;
 	dream?: Dream;
+	skipTurns?: number;       // ходи пропуску (downsize)
+	childrenCount?: number;   // кількість дітей (baby event)
 }
 
 export interface Dream {

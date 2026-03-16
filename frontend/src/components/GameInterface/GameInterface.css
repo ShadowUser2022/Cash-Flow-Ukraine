@@ -311,100 +311,91 @@
   opacity: 0.8;
 }
 
-/* === DISCRETE SIDEBAR TOGGLE BUTTONS === */
+/* === SIDEBAR TOGGLE BUTTONS — labeled, clearly visible === */
 .sidebar-toggle {
   position: fixed;
   top: 50%;
   transform: translateY(-50%);
-  width: 32px;
-  /* Зменшено */
-  height: 60px;
-  /* Зменшено */
-  background: rgba(10, 10, 10, 0.8);
-  /* Менш помітний */
+  width: 48px;
+  height: 80px;
+  background: rgba(15, 15, 20, 0.92);
   backdrop-filter: blur(15px);
-  border: 1px solid rgba(147, 197, 253, 0.2);
-  /* Менш яскраво */
+  border: 1px solid rgba(255, 215, 0, 0.25);
   cursor: pointer;
-  z-index: 1500;
+  z-index: 2200;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-size: 1rem;
-  /* Зменшено */
-  color: rgba(147, 197, 253, 0.7);
-  /* Менш яскраво */
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  gap: 4px;
+  color: #ffd700;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   user-select: none;
   -webkit-user-select: none;
-  opacity: 0.6;
-  /* Менш помітні за замовчуванням */
+  opacity: 0.85;
+  padding: 0;
 }
 
 .sidebar-toggle.left {
   left: 0;
-  border-radius: 0 12px 12px 0;
+  border-radius: 0 14px 14px 0;
   border-left: none;
 }
 
 .sidebar-toggle.right {
   right: 0;
-  border-radius: 12px 0 0 12px;
+  border-radius: 14px 0 0 14px;
   border-right: none;
+}
+
+/* Arrow icon inside toggle */
+.toggle-arrow {
+  font-size: 0.85rem;
+  line-height: 1;
+  color: #ffd700;
+}
+
+/* Label text inside toggle */
+.toggle-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: rgba(255, 215, 0, 0.85);
+  text-align: center;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 /* Left toggle when sidebar is open */
 .sidebar-toggle.left.active {
   left: 400px;
-  background: var(--bg-tertiary, rgba(40, 40, 40, 0.95));
-  border-color: var(--gold-primary, rgba(255, 215, 0, 0.8));
+  background: rgba(30, 30, 20, 0.98);
+  border-color: #ffd700;
+  box-shadow: 2px 0 12px rgba(255, 215, 0, 0.15);
 }
 
 /* Right toggle when sidebar is open */
 .sidebar-toggle.right.active {
   right: 400px;
-  background: var(--bg-tertiary, rgba(40, 40, 40, 0.95));
-  border-color: var(--gold-primary, rgba(255, 215, 0, 0.8));
+  background: rgba(30, 30, 20, 0.98);
+  border-color: #ffd700;
+  box-shadow: -2px 0 12px rgba(255, 215, 0, 0.15);
 }
 
 .sidebar-toggle:hover {
   opacity: 1;
-  /* Повна видимість при hover */
-  background: rgba(59, 130, 246, 0.2);
-  border-color: rgba(147, 197, 253, 0.4);
-  color: #93c5fd;
-  transform: translateY(-50%) scale(1.05);
-  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.2);
+  background: rgba(255, 215, 0, 0.12);
+  border-color: #ffd700;
+  box-shadow: 0 4px 16px rgba(255, 215, 0, 0.2);
 }
 
-/* Забезпечуємо видимість стрілочок */
-.sidebar-toggle::before {
-  content: attr(data-arrow);
-  display: block;
-  font-size: inherit;
-  line-height: 1;
-  pointer-events: none;
+.sidebar-toggle.left:hover {
+  transform: translateY(-50%) translateX(3px);
 }
 
-/* Fallback для browser без підтримки attr() */
-.sidebar-toggle:not([data-arrow])::before {
-  content: "◀";
-}
-
-.sidebar-toggle.left:not([data-arrow])::before {
-  content: "▶";
-}
-
-.sidebar-toggle.left.active:not([data-arrow])::before {
-  content: "◀";
-}
-
-.sidebar-toggle.right:not([data-arrow])::before {
-  content: "◀";
-}
-
-.sidebar-toggle.right.active:not([data-arrow])::before {
-  content: "▶";
+.sidebar-toggle.right:hover {
+  transform: translateY(-50%) translateX(-3px);
 }
 
 /* === LEFT SIDEBAR (Interaction) === */

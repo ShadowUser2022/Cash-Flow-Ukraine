@@ -14,9 +14,10 @@ interface UsePlayerTurnLogicProps {
     transactionToast: (type: 'income' | 'expense', amount: number, desc: string) => void;
   };
   setPlayerMovement?: (movement: any) => void;
+  onWin?: () => void;
 }
 
-export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setPlayerMovement }: UsePlayerTurnLogicProps) {
+export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setPlayerMovement, onWin }: UsePlayerTurnLogicProps) {
   // isMyTurn: чи зараз хід цього гравця
   const isMyTurn = !!game && !!currentPlayer && game.currentPlayer === playerId;
 
@@ -301,10 +302,13 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setP
 
     if (!game || !playerId) return;
 
-    // Якщо це перемога — закриваємо картку, нічого не платимо
+    // Якщо це перемога — показуємо Win Screen
     if (currentEventCard?.type === 'dream_check') {
       setShowEventCard(false);
       setCurrentEventCard(null);
+      if (currentEventCard.isWin && onWin) {
+        onWin();
+      }
       if (!isOffline) {
         socketService.completeTurn(game.id, playerId);
       }
@@ -322,23 +326,41 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setP
         
         if (playerIndex !== -1) {
           const player = { ...updatedGame.players[playerIndex] };
-          
-          if (player.finances.cash >= cost) {
+          const cardType = currentEventCard.type;
+
+          if (cardType === 'baby') {
+            // Baby: постійно +$500/місяць до витрат
+            player.finances.expenses += 500;
+            (player as any).childrenCount = ((player as any).childrenCount || 0) + 1;
+            console.log(`👶 [OFFLINE] Baby! Expenses +$500. New expenses: $${player.finances.expenses}`);
+            toasts.info('👶 Поповнення!', `Щомісячні витрати збільшились на $500. Всього дітей: ${(player as any).childrenCount}`);
+            updatedGame.players[playerIndex] = player;
+            setGame(updatedGame);
+            if (player.id === playerId) useGameStore.getState().setCurrentPlayer(player);
+          } else if (cardType === 'downsize') {
+            // Downsize: пропустити 2 ходи, повернення до Rat Race
+            (player as any).skipTurns = 2;
+            if (player.isOnFastTrack) {
+              player.isOnFastTrack = false;
+              player.position = 0;
+            }
+            console.log(`😱 [OFFLINE] Downsize! Skip 2 turns.`);
+            toasts.info('😱 Звільнення!', 'Ви пропустите 2 ходи');
+            updatedGame.players[playerIndex] = player;
+            setGame(updatedGame);
+            if (player.id === playerId) useGameStore.getState().setCurrentPlayer(player);
+          } else if (player.finances.cash >= cost) {
             player.finances.cash -= cost;
             console.log(`💸 [OFFLINE] Витрачено: $${cost}. Залишок: $${player.finances.cash}`);
             toasts.transactionToast('expense', cost, currentEventCard.title || 'Подія');
-            
-            // Якщо це можливість, в ідеалі додаємо актив, але зараз хоча б спишемо гроші
             updatedGame.players[playerIndex] = player;
             setGame(updatedGame);
-            
             if (player.id === playerId) {
               useGameStore.getState().setCurrentPlayer(player);
             }
           } else {
             console.warn('❌ [OFFLINE] Недостатньо коштів!');
             toasts.error('Помилка', 'Недостатньо грошей для цієї дії!');
-            // Тут можна додати логіку кредиту
           }
         }
       } else {
@@ -360,6 +382,14 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setP
             // Розлучення — спеціальна подія: ділимо готівку навпіл на бекенді
             socketService.payExpense(game.id, playerId, cost, 'divorce');
             toasts.transactionToast('expense', cost, 'Розлучення — втрата 50% готівки');
+
+          } else if (cardType === 'baby') {
+            // Baby event — бекенд вже додав $500 до expenses в processCellEffect
+            toasts.info('👶 Поповнення!', 'Щомісячні витрати збільшились на $500');
+
+          } else if (cardType === 'downsize') {
+            // Downsize — бекенд вже встановив skipTurns=2
+            toasts.info('😱 Звільнення!', 'Ви пропустите 2 ходи');
 
           } else if (cardType === 'opportunity' || cardType === 'business') {
             // Інвестиційна можливість — купуємо угоду
@@ -420,6 +450,19 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setP
       
       if (playerIndex !== -1) {
         const player = { ...updatedGame.players[playerIndex] };
+
+        // Перевірка пропуску ходу (downsize)
+        if ((player as any).skipTurns && (player as any).skipTurns > 0) {
+          (player as any).skipTurns = (player as any).skipTurns - 1;
+          const remaining = (player as any).skipTurns;
+          console.log(`⏭️ [OFFLINE] Skipped turn. Remaining skips: ${remaining}`);
+          toasts.info('⏭️ Пропуск ходу', remaining > 0 ? `Залишилось ще ${remaining} пропуски(ів)` : 'Відновлення після звільнення!');
+          updatedGame.players[playerIndex] = player;
+          setGame(updatedGame);
+          if (player.id === playerId) useGameStore.getState().setCurrentPlayer(player);
+          return;
+        }
+
         const oldPosition = player.position;
         const newPosition = (oldPosition + result) % 24;
         
@@ -463,6 +506,16 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setP
               cardData.title = 'Ринковий бум (Mock)';
               cardData.description = 'Ціни на нерухомість зросли! Кожен власник дуплекса отримує +$5000.';
               cardData.action = 'Чудово';
+            } else if (cell.type === 'baby') {
+              cardData.title = '👶 Поповнення в родині!';
+              cardData.description = 'Вітаємо! У вас народилася дитина. Щомісячні витрати збільшуються на $500 назавжди.';
+              cardData.value = 0;
+              cardData.action = 'Прийняти';
+            } else if (cell.type === 'downsize') {
+              cardData.title = '😱 Звільнення!';
+              cardData.description = 'Ви втратили роботу або бізнес зазнав невдачі. Пропускаєте 2 ходи.';
+              cardData.value = 0;
+              cardData.action = 'Зрозуміло';
             }
 
             setCurrentEventCard(cardData);

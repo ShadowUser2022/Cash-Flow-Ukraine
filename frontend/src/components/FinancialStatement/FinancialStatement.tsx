@@ -28,16 +28,17 @@ const FinancialStatement: React.FC<FinancialStatementProps> = ({
     }).format(amount);
   };
 
-  // Розрахунок детальних витрат (мок дані для демонстрації)
+  // Реальний розрахунок витрат на основі даних гравця
   const getExpenseBreakdown = () => {
-    const totalExpenses = currentPlayer.finances.expenses;
-    return {
-      taxes: Math.round(totalExpenses * 0.35),
-      homeMortgage: Math.round(totalExpenses * 0.25),
-      carExpenses: Math.round(totalExpenses * 0.15),
-      creditCards: Math.round(totalExpenses * 0.10),
-      otherExpenses: Math.round(totalExpenses * 0.15)
-    };
+    const liabilities = currentPlayer.finances.liabilities || [];
+    const profExpenses = currentPlayer.profession?.expenses || 0;
+    const liabilityTotal = liabilities.reduce((sum, l) => sum + (l.monthlyPayment || 0), 0);
+    // Базові витрати профессії (без liabilities)
+    const baseExpenses = Math.max(0, profExpenses - liabilityTotal);
+    // Діти: childrenCount * 500
+    const childrenCount = (currentPlayer as any).childrenCount || 0;
+    const babyExpenses = childrenCount * 500;
+    return { baseExpenses, liabilities, babyExpenses, childrenCount };
   };
 
   const expenseBreakdown = getExpenseBreakdown();
@@ -83,44 +84,30 @@ const FinancialStatement: React.FC<FinancialStatementProps> = ({
       {/* ВИТРАТИ */}
       <div className="statement-section expense-section">
         <h5 className="section-title">💸 ВИТРАТИ</h5>
-        
-        <div className="finance-row">
-          <span className="label">🏠 Податки:</span>
-          <span className="value negative">{formatCurrency(expenseBreakdown.taxes)}</span>
-        </div>
-        
-        <div className="finance-row">
-          <span className="label">🏡 Домашні витрати:</span>
-          <span className="value negative">{formatCurrency(expenseBreakdown.homeMortgage)}</span>
-        </div>
-        
-        <div className="finance-row">
-          <span className="label">🚗 Авто витрати:</span>
-          <span className="value negative">{formatCurrency(expenseBreakdown.carExpenses)}</span>
-        </div>
-        
-        <div className="finance-row">
-          <span className="label">💳 Кредитні картки:</span>
-          <span className="value negative">{formatCurrency(expenseBreakdown.creditCards)}</span>
-        </div>
-        
-        <div className="finance-row">
-          <span className="label">🛍️ Інші витрати:</span>
-          <span className="value negative">{formatCurrency(expenseBreakdown.otherExpenses)}</span>
-        </div>
-        
-        {currentPlayer.finances.liabilities && currentPlayer.finances.liabilities.length > 0 && (
-          <div className="liabilities-list">
-            <h6 className="subsection-title">💸 ЗОБОВ'ЯЗАННЯ:</h6>
-            {currentPlayer.finances.liabilities.map((liability, index) => (
-              <div key={liability.id || index} className="finance-row liability-row">
-                <span className="label">{liability.name}:</span>
-                <span className="value negative">{formatCurrency(liability.monthlyPayment)}</span>
-              </div>
-            ))}
+
+        {expenseBreakdown.baseExpenses > 0 && (
+          <div className="finance-row">
+            <span className="label">🏠 Базові витрати ({currentPlayer.profession.name}):</span>
+            <span className="value negative">{formatCurrency(expenseBreakdown.baseExpenses)}</span>
           </div>
         )}
-        
+
+        {expenseBreakdown.liabilities.map((liability, index) => (
+          <div key={liability.id || index} className="finance-row liability-row">
+            <span className="label">
+              {liability.type === 'mortgage' ? '🏡' : liability.type === 'loan' ? '💳' : '📋'} {liability.name}:
+            </span>
+            <span className="value negative">{formatCurrency(liability.monthlyPayment)}</span>
+          </div>
+        ))}
+
+        {expenseBreakdown.babyExpenses > 0 && (
+          <div className="finance-row">
+            <span className="label">👶 Діти ({expenseBreakdown.childrenCount} × $500):</span>
+            <span className="value negative">{formatCurrency(expenseBreakdown.babyExpenses)}</span>
+          </div>
+        )}
+
         <div className="total-row">
           <span className="label"><strong>Загальні витрати:</strong></span>
           <span className="value negative total">{formatCurrency(currentPlayer.finances.expenses)}</span>

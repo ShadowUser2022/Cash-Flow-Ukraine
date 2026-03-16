@@ -13,6 +13,7 @@ import ToastNotifications from './ui/Overlays';
 import LeftSidebar from '../LeftSidebar/LeftSidebar';
 import RightSidebar from '../RightSidebar/RightSidebar';
 import MobileNavigation from './ui/Sidebars';
+import WinScreen from '../WinScreen/WinScreen';
 
 
 interface GameInterfaceProps {
@@ -36,6 +37,7 @@ const GameInterface: React.FC<GameInterfaceProps> = ({ gameId, playerId }) => {
   } | null>(null); // для BoardContainer
   const [leftSidebarOpen, setLeftSidebarOpen] = useState(false);
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false);
+  const [isWon, setIsWon] = useState(false);
   const { toasts, removeToast, addToast, success, info, error, transactionToast } = useToast();
   // Стартове toast-повідомлення при запуску гри
   useEffect(() => {
@@ -53,20 +55,21 @@ const GameInterface: React.FC<GameInterfaceProps> = ({ gameId, playerId }) => {
   const isMobile = useIsMobile();
 
   // === Логіка ходу ===
-  const { 
-    isMyTurn, 
-    canMoveToFastTrack, 
-    handleExecuteTurn, 
+  const {
+    isMyTurn,
+    canMoveToFastTrack,
+    handleExecuteTurn,
     handleDiceRollComplete,
     currentEventCard,
     showEventCard,
     handleEventCardAction
-  } = usePlayerTurnLogic({ 
-    game, 
-    playerId, 
-    currentPlayer, 
+  } = usePlayerTurnLogic({
+    game,
+    playerId,
+    currentPlayer,
     toasts: { success, info, error, transactionToast },
-    setPlayerMovement
+    setPlayerMovement,
+    onWin: () => setIsWon(true)
   });
 
   // === Stub-функції для пропсів ===
@@ -105,9 +108,10 @@ const GameInterface: React.FC<GameInterfaceProps> = ({ gameId, playerId }) => {
       <button
         className={`sidebar-toggle left ${leftSidebarOpen ? 'active' : ''}`}
         onClick={handleLeftSidebarToggle}
-        title={leftSidebarOpen ? 'Сховати панель' : 'Показати панель взаємодії'}
+        title={leftSidebarOpen ? 'Сховати панель' : 'Відкрити: Ваші дії + Фінанси'}
       >
-        {leftSidebarOpen ? '◀' : '▶'}
+        <span className="toggle-arrow">{leftSidebarOpen ? '◀' : '▶'}</span>
+        <span className="toggle-label">{leftSidebarOpen ? 'Закрити' : '📊 Дії'}</span>
       </button>
       {game && currentPlayer && (
         <LeftSidebar
@@ -127,9 +131,10 @@ const GameInterface: React.FC<GameInterfaceProps> = ({ gameId, playerId }) => {
       <button
         className={`sidebar-toggle right ${rightSidebarOpen ? 'active' : ''}`}
         onClick={handleRightSidebarToggle}
-        title={rightSidebarOpen ? 'Сховати Game Hub' : 'Показати Game Hub'}
+        title={rightSidebarOpen ? 'Сховати Game Hub' : 'Відкрити: Угоди + Інфо'}
       >
-        {rightSidebarOpen ? '▶' : '◀'}
+        <span className="toggle-arrow">{rightSidebarOpen ? '▶' : '◀'}</span>
+        <span className="toggle-label">{rightSidebarOpen ? 'Закрити' : '🎲 Угоди'}</span>
       </button>
       {game && currentPlayer && (
         <RightSidebar
@@ -168,6 +173,17 @@ const GameInterface: React.FC<GameInterfaceProps> = ({ gameId, playerId }) => {
           rightSidebarOpen={rightSidebarOpen}
           handleLeftSidebarToggle={handleLeftSidebarToggle}
           handleRightSidebarToggle={handleRightSidebarToggle}
+        />
+      )}
+
+      {/* Екран перемоги */}
+      {isWon && currentPlayer && (
+        <WinScreen
+          winnerName={currentPlayer.name}
+          dreamTitle={(currentPlayer as any).dream?.title || 'Фінансова свобода'}
+          dreamCost={(currentPlayer as any).dream?.estimatedCost || 0}
+          finalCash={currentPlayer.finances.cash}
+          onBackToLobby={() => window.location.reload()}
         />
       )}
     </div>

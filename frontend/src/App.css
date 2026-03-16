@@ -2896,10 +2896,86 @@ body {
 }
 
 /* ============================================================
-   LOBBY REDESIGN — Clean minimal layout
+   LOBBY REDESIGN — "Вітаємо у грі!" style
    ============================================================ */
 
-/* Header */
+/* === Connection bar at top === */
+.lobby-conn-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  background: rgba(0, 0, 0, 0.35);
+  border-bottom: 1px solid rgba(255, 215, 0, 0.1);
+  flex-shrink: 0;
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.7);
+  flex-wrap: wrap;
+}
+
+.conn-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: statusPulse 2s infinite;
+}
+
+.conn-status-dot.connected { background: #4caf50; }
+.conn-status-dot.disconnected { background: #f44336; }
+
+.conn-status-text {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.conn-player-id {
+  color: rgba(255, 215, 0, 0.75);
+  font-family: "Courier New", monospace;
+  font-size: 0.72rem;
+}
+
+.conn-socket {
+  color: rgba(255, 255, 255, 0.6);
+  margin-left: auto;
+}
+
+/* === Brand line === */
+.lobby-brand-line {
+  text-align: center;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: rgba(255, 215, 0, 0.6);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 16px 20px 0;
+  flex-shrink: 0;
+}
+
+/* === Welcome card === */
+.lobby-welcome-card {
+  text-align: center;
+  padding: 24px 28px 20px;
+  flex-shrink: 0;
+}
+
+.lobby-welcome-title {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #ffd700;
+  margin: 0 0 8px;
+  text-shadow: 0 0 24px rgba(255, 215, 0, 0.35);
+  letter-spacing: -0.5px;
+}
+
+.lobby-welcome-sub {
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.65);
+  margin: 0;
+  font-weight: 400;
+}
+
+/* Header — keep for back compat */
 .lobby-header {
   display: flex;
   justify-content: space-between;

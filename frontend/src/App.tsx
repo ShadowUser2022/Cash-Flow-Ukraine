@@ -600,29 +600,35 @@ function App() {
       <div className="app">
         {currentScreen === "lobby" ? (
           <div className="lobby-container">
-            {/* Header */}
-            <header className="lobby-header">
-              <div className="title-section">
-                <h1 className="game-title">
-                  <span className="title-icon">💎</span>
-                  Cash Flow Ukraine
-                </h1>
-                <p className="game-subtitle">Навчайся управляти фінансами через гру</p>
-              </div>
-              <div className="lobby-header-right">
-                <div className={`status-pill ${isConnected ? "status-online" : "status-offline"}`}>
-                  <span className="status-dot"></span>
-                  {isConnected ? "Онлайн" : "Офлайн"}
-                </div>
-                <button
-                  className="dev-mode-badge"
-                  onClick={startDeveloperMode}
-                  title="Тестовий режим розробника"
-                >
-                  🧪
-                </button>
-              </div>
-            </header>
+            {/* === Connection status bar at top === */}
+            <div className="lobby-conn-bar">
+              <div className={`conn-status-dot ${isConnected ? 'connected' : 'disconnected'}`}></div>
+              <span className="conn-status-text">{isConnected ? 'Підключено' : 'Відключено'}</span>
+              {currentPlayerId && (
+                <span className="conn-player-id">
+                  Player ID: {currentPlayerId.substring(0, 14)}...
+                </span>
+              )}
+              <span className="conn-socket">
+                Socket: {isConnected ? '✅' : '❌'}
+              </span>
+              <button
+                className="dev-mode-badge"
+                onClick={startDeveloperMode}
+                title="Тестовий режим розробника"
+              >
+                🧪
+              </button>
+            </div>
+
+            {/* === Brand === */}
+            <div className="lobby-brand-line">Cash Flow Ukraine</div>
+
+            {/* === Welcome card === */}
+            <div className="lobby-welcome-card">
+              <h1 className="lobby-welcome-title">Вітаємо у грі!</h1>
+              <p className="lobby-welcome-sub">Введіть ваше ім'я щоб почати</p>
+            </div>
 
             <main className="lobby-main">
               {/* Name input */}
@@ -647,10 +653,10 @@ function App() {
                 disabled={!playerName.trim()}
                 className="hero-play-btn"
               >
-                <span className="hero-btn-icon">🎮</span>
+                <span className="hero-btn-icon">🎯</span>
                 <span className="hero-btn-text">
-                  <strong>Грати в одного</strong>
-                  <small>Починай одразу — без очікування</small>
+                  <strong>Станьте творцем фінансової свободи</strong>
+                  <small>Грати в одного — починай одразу</small>
                 </span>
               </button>
 
@@ -667,7 +673,7 @@ function App() {
                     {isCreatingGame ? (
                       <><span className="loading-spinner small"></span> Створення...</>
                     ) : (
-                      <><span>🎯</span> Створити кімнату</>
+                      <><span>🎮</span> Створити кімнату</>
                     )}
                   </button>
 
