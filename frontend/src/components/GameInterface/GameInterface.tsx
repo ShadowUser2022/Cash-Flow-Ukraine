@@ -27,7 +27,16 @@ interface GameInterfaceProps {
 
 const GameInterface: React.FC<GameInterfaceProps> = ({ gameId, playerId }) => {
   // === STATE & HOOKS ===
-  const { game, currentPlayer } = useGameStore();
+  const { game, currentPlayer: storeCurrentPlayer, setCurrentPlayer } = useGameStore();
+
+  // ✅ Деривуємо currentPlayer прямо з game.players — уникаємо stale closure
+  const currentPlayer = game?.players?.find((p) => p.id === playerId) ?? storeCurrentPlayer;
+
+  // Синхронізуємо store якщо знайдено з game
+  useEffect(() => {
+    const derived = game?.players?.find((p) => p.id === playerId);
+    if (derived) setCurrentPlayer(derived);
+  }, [game, playerId, setCurrentPlayer]);
   // Stub/mock дані для пропсів
   const [playerMovement, setPlayerMovement] = useState<{
     playerId: string;
