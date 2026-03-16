@@ -445,6 +445,42 @@ app.post("/api/games", (req, res) => {
   });
 });
 
+// ✅ Start game endpoint
+app.post("/api/games/:gameId/start", (req, res) => {
+  const { gameId } = req.params;
+  const { hostId } = req.body;
+
+  const game = gameStore.get(gameId);
+  if (!game) {
+    return res.status(404).json({ success: false, error: "Game not found" });
+  }
+
+  if (game.hostId !== hostId) {
+    return res.status(403).json({ success: false, error: "Only host can start the game" });
+  }
+
+  if (game.players.length < 1) {
+    return res.status(400).json({ success: false, error: "Need at least 1 player" });
+  }
+
+  // Transition to playing state
+  game.state = "playing";
+  game.currentPlayer = game.players[0].id;
+  game.turn = 1;
+  game.updatedAt = new Date().toISOString();
+  gameStore.set(gameId, game);
+
+  console.log(`🚀 Game ${gameId} started by host ${hostId}`);
+
+  // Notify all players via /game namespace
+  if (gameNamespace) {
+    gameNamespace.to(gameId).emit("game-started", { gameId, gameState: game });
+    gameNamespace.to(gameId).emit("game-state", game);
+  }
+
+  res.json({ success: true, game });
+});
+
 // Import TypeScript routes (закоментовано поки не виправимо)
 // const { gameRoutes } = require('./src/controllers/gameController-memory.ts');
 // app.use('/api/games', gameRoutes);
