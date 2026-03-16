@@ -463,8 +463,8 @@ app.post("/api/games/:gameId/start", (req, res) => {
     return res.status(400).json({ success: false, error: "Need at least 1 player" });
   }
 
-  // Transition to playing state
-  game.state = "playing";
+  // Transition to playing state (must match GameState.IN_PROGRESS = 'in_progress')
+  game.state = "in_progress";
   game.currentPlayer = game.players[0].id;
   game.turn = 1;
   game.updatedAt = new Date().toISOString();
