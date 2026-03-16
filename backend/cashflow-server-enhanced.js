@@ -252,9 +252,9 @@ app.post("/api/games/:gameId/join", (req, res) => {
   });
 
   // ✅ Emit game state to all connected clients in this game room
-  if (io) {
-    io.to(gameId).emit("game-state", game);
-    io.to(gameId).emit("player-joined", { playerId, playerData });
+  if (gameNamespace) {
+    gameNamespace.to(gameId).emit("game-state", game);
+    gameNamespace.to(gameId).emit("player-joined", { playerId, playerData });
   }
 
   res.json({
@@ -304,9 +304,10 @@ app.post("/api/games/:gameId/ready", (req, res) => {
   console.log(`✅ Player ${playerId} ready status updated to: ${isReady}`);
 
   // ✅ Emit game state to all connected clients in this game room
-  if (io) {
-    io.to(gameId).emit("game-state", game);
-    io.to(gameId).emit("player-ready-status-changed", { playerId, isReady });
+  if (gameNamespace) {
+    gameNamespace.to(gameId).emit("game-state", game);
+    gameNamespace.to(gameId).emit("player-ready-status-changed", { playerId, isReady });
+    gameNamespace.to(gameId).emit("player-ready", { playerId, isReady });
   }
 
   res.json({
@@ -409,9 +410,9 @@ app.post("/api/games/:gameId/profession", (req, res) => {
   console.log(`✅ Player ${playerId} profession updated to: ${professionName}`);
 
   // ✅ Emit game state to all connected clients in this game room
-  if (io) {
-    io.to(gameId).emit("game-state", game);
-    io.to(gameId).emit("profession-changed", {
+  if (gameNamespace) {
+    gameNamespace.to(gameId).emit("game-state", game);
+    gameNamespace.to(gameId).emit("profession-changed", {
       playerId,
       profession: professionName,
     });
@@ -1214,12 +1215,12 @@ gameNamespace.on("connection", (socket) => {
           console.log(`✅ Synced dream to game state for player ${playerId}`);
           
           // Емітуємо оновлений стан всім гравцям
-          io.to(gameId).emit("game-state", game);
+          gameNamespace.to(gameId).emit("game-state", game);
         }
       }
 
       // Повідомляємо всіх гравців про встановлення мрії (для анімацій/тостів)
-      io.to(gameId).emit("player-dream-set", {
+      gameNamespace.to(gameId).emit("player-dream-set", {
         playerId,
         dream: savedDream,
         gameId,
