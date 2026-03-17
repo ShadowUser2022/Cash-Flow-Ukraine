@@ -3,6 +3,7 @@ import useGameStore from '../../store/gameStore';
 import { socketService } from '../../services/socketService';
 import { useDeals } from '../../hooks/useDeals';
 import type { Deal, Player, Asset } from '../../types';
+import StockBoard from './StockBoard';
 import './DealsPanel.css';
 
 interface DealsPanelProps {
@@ -19,6 +20,9 @@ export const DealsPanel: React.FC<DealsPanelProps> = ({ playerId }) => {
   // Derive available deals from game.deals (works for both online & offline)
   const availableDeals = game?.deals?.filter((d: Deal) => d.isAvailable !== false) || [];
   
+  // Вкладки: deals | assets | market
+  const [activeTab, setActiveTab] = useState<'deals' | 'assets' | 'market'>('deals');
+
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
   const [sellModal, setSellModal] = useState<{
     isOpen: boolean;
@@ -164,17 +168,43 @@ export const DealsPanel: React.FC<DealsPanelProps> = ({ playerId }) => {
     }).format(amount);
   };
 
+  // Стилі вкладок
+  const tabStyle = (tab: string) => ({
+    flex: 1, padding: '7px 4px', fontSize: 12, fontWeight: 600,
+    borderRadius: 6, border: 'none', cursor: 'pointer',
+    background: activeTab === tab ? 'rgba(245,166,35,0.25)' : 'rgba(255,255,255,0.06)',
+    color: activeTab === tab ? '#FFD700' : 'rgba(255,255,255,0.55)',
+    transition: 'all 0.15s',
+  } as React.CSSProperties);
+
   return (
     <div className="deals-panel">
-      <div className="card stats-card">
-        <h3>💰 Market Deals</h3>
-        <div className="deals-stats">
-          <span>Available: {availableDeals.length}</span>
-          <span>Your Cash: {formatCurrency(currentPlayer.finances.cash)}</span>
-        </div>
+      {/* Верхня інфо-панель */}
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        padding: '8px 10px', background: 'rgba(255,255,255,0.04)',
+        borderRadius: 8, marginBottom: 10, fontSize: 12
+      }}>
+        <span style={{ color: 'rgba(255,255,255,0.6)' }}>
+          💵 {formatCurrency(currentPlayer.finances.cash)}
+        </span>
+        <span style={{ color: 'rgba(255,255,255,0.4)' }}>
+          {currentPlayer.finances.assets.length} активів · {availableDeals.length} угод
+        </span>
       </div>
 
-      <div className="deals-grid">
+      {/* Вкладки */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
+        <button style={tabStyle('deals')} onClick={() => setActiveTab('deals')}>💼 Угоди</button>
+        <button style={tabStyle('assets')} onClick={() => setActiveTab('assets')}>🏦 Активи</button>
+        <button style={tabStyle('market')} onClick={() => setActiveTab('market')}>📈 Ринок</button>
+      </div>
+
+      {/* ─── ВКЛАДКА: РИНОК (StockBoard) ─── */}
+      {activeTab === 'market' && <StockBoard />}
+
+      {/* ─── ВКЛАДКА: УГОДИ ─── */}
+      {activeTab === 'deals' && <div className="deals-grid">
         {availableDeals.map((deal: Deal) => (
           <div 
             key={deal.id} 
@@ -233,86 +263,96 @@ export const DealsPanel: React.FC<DealsPanelProps> = ({ playerId }) => {
             </div>
           </div>
         ))}
-      </div>
+      </div>}
 
-      {/* Last sold notification */}
-      {lastSoldInfo && (
-        <div className="card stats-card" style={{ border: '2px solid #4CAF50', background: '#1a2e1a' }}>
-          <h4>✅ Актив продано!</h4>
-          <p><strong>{lastSoldInfo.assetName}</strong></p>
-          <p>Отримано: {formatCurrency(lastSoldInfo.amountReceived)}</p>
-          <p style={{ color: lastSoldInfo.profit >= 0 ? '#4CAF50' : '#F44336' }}>
-            Прибуток: {lastSoldInfo.profit >= 0 ? '+' : ''}{formatCurrency(lastSoldInfo.profit)}
-          </p>
-        </div>
-      )}
+      {/* ─── ВКЛАДКА: АКТИВИ ─── */}
+      {activeTab === 'assets' && (
+        <div>
+          {/* Last sold notification */}
+          {lastSoldInfo && lastSoldInfo.amountReceived > 0 && (
+            <div style={{
+              border: '1px solid #4CAF50', background: 'rgba(76,175,80,0.1)',
+              borderRadius: 8, padding: '10px 14px', marginBottom: 10
+            }}>
+              <div style={{ color: '#4CAF50', fontWeight: 700, marginBottom: 4 }}>✅ Актив продано!</div>
+              <div style={{ fontSize: 13, color: '#ddd' }}>{lastSoldInfo.assetName}</div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>
+                Отримано: <strong style={{ color: '#4CAF50' }}>{formatCurrency(lastSoldInfo.amountReceived)}</strong>
+                {' · '}
+                <span style={{ color: lastSoldInfo.profit >= 0 ? '#4CAF50' : '#F44336' }}>
+                  {lastSoldInfo.profit >= 0 ? '+' : ''}{formatCurrency(lastSoldInfo.profit)}
+                </span>
+              </div>
+            </div>
+          )}
 
-      {currentPlayer.finances.assets.length > 0 && (
-        <div className="player-assets">
-          <div className="card stats-card">
-            <h4>🏦 Ваші активи ({currentPlayer.finances.assets.length})</h4>
-          </div>
-          <div className="assets-grid">
-            {currentPlayer.finances.assets.map((asset: Asset) => {
-              const sellPrice = getSellPrice(asset);
-              const multiplierLabel = getMultiplierLabel(asset);
-              const mortgage = (asset as any).mortgage || 0;
-              const netProceeds = sellPrice - mortgage;
-              return (
-                <div key={asset.id} className="card asset-card">
-                  <div className="asset-header">
-                    <span className="asset-icon">{getDealIcon(asset.type)}</span>
-                    <h5>{asset.name}</h5>
-                  </div>
-                  {multiplierLabel && (
-                    <div style={{ color: '#FFD700', fontWeight: 'bold', fontSize: '0.8em', marginBottom: 4 }}>
-                      {multiplierLabel}
+          {currentPlayer.finances.assets.length === 0 ? (
+            <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.3)', padding: '24px 0', fontSize: 13 }}>
+              У вас ще немає активів.<br />Купуйте угоди у вкладці "Угоди".
+            </div>
+          ) : (
+            <div className="assets-grid">
+              {currentPlayer.finances.assets.map((asset: Asset) => {
+                const sellPrice = getSellPrice(asset);
+                const multiplierLabel = getMultiplierLabel(asset);
+                const mortgage = (asset as any).mortgage || 0;
+                const netProceeds = sellPrice - mortgage;
+                return (
+                  <div key={asset.id} className="card asset-card">
+                    <div className="asset-header">
+                      <span className="asset-icon">{getDealIcon(asset.type)}</span>
+                      <h5>{asset.name}</h5>
                     </div>
-                  )}
-                  <div className="asset-info">
-                    <div className="asset-row">
-                      <span>Дохід/міс:</span>
-                      <span className={`asset-value ${asset.cashFlow >= 0 ? 'positive' : 'negative'}`}>
-                        {formatCurrency(asset.cashFlow)}
-                      </span>
-                    </div>
-                    <div className="asset-row">
-                      <span>Ціна покупки:</span>
-                      <span className="asset-value">{formatCurrency(asset.cost)}</span>
-                    </div>
-                    <div className="asset-row">
-                      <span>Ціна продажу:</span>
-                      <span className="asset-value" style={{ color: sellPrice > asset.cost ? '#4CAF50' : sellPrice < asset.cost ? '#F44336' : 'inherit' }}>
-                        {formatCurrency(sellPrice)}
-                      </span>
-                    </div>
-                    {mortgage > 0 && (
-                      <div className="asset-row">
-                        <span>Іпотека:</span>
-                        <span className="asset-value negative">−{formatCurrency(mortgage)}</span>
+                    {multiplierLabel && (
+                      <div style={{ color: '#FFD700', fontWeight: 'bold', fontSize: '0.8em', marginBottom: 4 }}>
+                        {multiplierLabel}
                       </div>
                     )}
-                    {mortgage > 0 && (
-                      <div className="asset-row" style={{ fontWeight: 'bold' }}>
-                        <span>Чисто на руки:</span>
-                        <span className={`asset-value ${netProceeds >= 0 ? 'positive' : 'negative'}`}>
-                          {formatCurrency(netProceeds)}
+                    <div className="asset-info">
+                      <div className="asset-row">
+                        <span>Дохід/міс:</span>
+                        <span className={`asset-value ${asset.cashFlow >= 0 ? 'positive' : 'negative'}`}>
+                          {formatCurrency(asset.cashFlow)}
                         </span>
                       </div>
-                    )}
+                      <div className="asset-row">
+                        <span>Ціна покупки:</span>
+                        <span className="asset-value">{formatCurrency(asset.cost)}</span>
+                      </div>
+                      <div className="asset-row">
+                        <span>Ціна продажу:</span>
+                        <span className="asset-value" style={{ color: sellPrice > asset.cost ? '#4CAF50' : sellPrice < asset.cost ? '#F44336' : 'inherit' }}>
+                          {formatCurrency(sellPrice)}
+                        </span>
+                      </div>
+                      {mortgage > 0 && (
+                        <div className="asset-row">
+                          <span>Іпотека:</span>
+                          <span className="asset-value negative">−{formatCurrency(mortgage)}</span>
+                        </div>
+                      )}
+                      {mortgage > 0 && (
+                        <div className="asset-row" style={{ fontWeight: 'bold' }}>
+                          <span>Чисто на руки:</span>
+                          <span className={`asset-value ${netProceeds >= 0 ? 'positive' : 'negative'}`}>
+                            {formatCurrency(netProceeds)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      className="deal-btn sell-btn"
+                      onClick={() => handleSellAsset(asset)}
+                      disabled={netProceeds < 0}
+                      title={netProceeds < 0 ? 'Іпотека перевищує ціну продажу' : `Продати за ${formatCurrency(sellPrice)}`}
+                    >
+                      💸 Продати
+                    </button>
                   </div>
-                  <button
-                    className="deal-btn sell-btn"
-                    onClick={() => handleSellAsset(asset)}
-                    disabled={netProceeds < 0}
-                    title={netProceeds < 0 ? 'Іпотека перевищує ціну продажу' : `Продати за ${formatCurrency(sellPrice)}`}
-                  >
-                    💸 Продати
-                  </button>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 

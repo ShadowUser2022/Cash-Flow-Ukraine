@@ -143,6 +143,14 @@ app.post("/api/games/create", (req, res) => {
     deals: [],
     marketEvents: [],
     negotiations: [],
+    // 📈 Stock market board — tracks price history per stock symbol
+    stockMarket: {
+      NVT: { name: 'NovaTech', symbol: 'NVT', icon: '💻', pricePerShare: 10, basePrice: 10, priceHistory: [10] },
+      AGH: { name: 'AgriHolding', symbol: 'AGH', icon: '🌾', pricePerShare: 50, basePrice: 50, priceHistory: [50] },
+      ENP: { name: 'EnergyPro', symbol: 'ENP', icon: '⚡', pricePerShare: 25, basePrice: 25, priceHistory: [25] },
+      FNB: { name: 'FinBank', symbol: 'FNB', icon: '🏦', pricePerShare: 100, basePrice: 100, priceHistory: [100] },
+      STX: { name: 'StartupX', symbol: 'STX', icon: '🚀', pricePerShare: 5, basePrice: 5, priceHistory: [5] },
+    },
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -1291,47 +1299,7 @@ gameNamespace.on("connection", (socket) => {
     }
   });
 
-  // ✅ Продаж активу гравця
-  socket.on("sell-deal", async ({ gameId, playerId, assetId, sellPrice }) => {
-    console.log(`💰 Player ${playerId} selling asset ${assetId} in game ${gameId}`);
-
-    try {
-      const game = gameStore.get(gameId);
-      if (!game) throw new Error("Game not found");
-
-      const result = await GameMechanicsService.sellAsset(game, playerId, assetId, sellPrice);
-
-      if (result.success) {
-        const player = game.players.find(p => p.id === playerId);
-
-        game.updatedAt = new Date();
-        gameStore.set(gameId, game);
-
-        gameNamespace.to(gameId).emit("deal-sold", {
-          playerId,
-          assetId,
-          assetName: assetId,
-          amountReceived: result.amountReceived || 0,
-          profit: result.profit || 0,
-          newCashBalance: player?.finances?.cash || 0,
-          passiveIncome: player?.finances?.passiveIncome || 0,
-          gameState: game,
-        });
-
-        gameNamespace.to(gameId).emit("player-finances-updated", {
-          playerId,
-          finances: player?.finances,
-        });
-
-        emitGameState(gameId);
-      } else {
-        socket.emit("error", { message: result.message });
-      }
-    } catch (error) {
-      console.error("Error processing sell-deal:", error);
-      socket.emit("error", { message: "Помилка при продажу активу" });
-    }
-  });
+  // sell-deal — handled below (line ~1688, more complete version)
 
   // Обробка отримання доходу (зарплата, бонуси)
   socket.on(
@@ -1391,7 +1359,7 @@ gameNamespace.on("connection", (socket) => {
         bonusEffect: null,
       };
 
-      if (choice !== "skip" && amount > 0) {
+      if (choice === "donate" || (choice !== "skip" && amount > 0)) {
         // Віднімаємо гроші за благодійність
         result = updatePlayerCash(
           playerId,
@@ -1403,10 +1371,17 @@ gameNamespace.on("connection", (socket) => {
         charityResult.newCashBalance = result.finances.cash;
         charityResult.transaction = result.transaction;
 
-        // Додаємо бонусний ефект для великої благодійності
-        if (parseInt(choice) >= 20) {
-          charityResult.bonusEffect = "extra_turn";
+        // ✅ Бонус: 3 ходи з 2 кубиками
+        const game = gameStore.get(gameId);
+        if (game) {
+          const player = game.players.find(p => p.id === playerId);
+          if (player) {
+            player.charityTurnsLeft = 3;
+            gameStore.set(gameId, game);
+            console.log(`❤️ [CHARITY] ${player.name} donated $${amount}. charityTurnsLeft=3`);
+          }
         }
+        charityResult.bonusEffect = "two_dice_3_turns";
       } else {
         // Якщо пропустили, штрафу поки немає, але можна додати
         const finances = getPlayerFinances(playerId);
@@ -1495,6 +1470,19 @@ gameNamespace.on("connection", (socket) => {
                 }
               });
             });
+
+            // 📈 Оновлюємо stockMarket — нова ціна та запис в історію
+            if ((affectedType === 'stocks' || affectedType === 'all') && game.stockMarket) {
+              Object.values(game.stockMarket).forEach((stock) => {
+                const newPrice = Math.round(stock.basePrice * card.sellMultiplier);
+                stock.pricePerShare = newPrice;
+                stock.priceHistory.push(newPrice);
+                // Зберігаємо max 12 точок (12 "раундів")
+                if (stock.priceHistory.length > 12) stock.priceHistory.shift();
+              });
+              console.log(`📊 StockMarket updated: multiplier ${card.sellMultiplier}x on stocks`);
+            }
+
             gameStore.set(gameId, game);
             marketResult.sellMultiplier = card.sellMultiplier;
             marketResult.affectedAssetType = affectedType;
