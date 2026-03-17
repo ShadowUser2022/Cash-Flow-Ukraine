@@ -1,0 +1,46 @@
+.turn-timer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.turn-timer svg {
+  display: block;
+}
+
+.turn-timer-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: #4caf50;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+/* Пульсація коли мало часу */
+.turn-timer.urgent svg {
+  animation: timer-pulse 1s ease-in-out infinite;
+}
+
+.turn-timer.danger svg {
+  animation: timer-pulse 0.5s ease-in-out infinite;
+}
+
+.turn-timer.my-turn .turn-timer-label {
+  color: #4caf50;
+}
+
+.turn-timer.urgent .turn-timer-label {
+  color: #ffaa00;
+}
+
+.turn-timer.danger .turn-timer-label {
+  color: #ff4444;
+}
+
+@keyframes timer-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}

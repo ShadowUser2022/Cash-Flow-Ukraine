@@ -72,6 +72,10 @@ export const SOCKET_EVENTS = {
 	ANSWER: 'answer',
 	ICE_CANDIDATE: 'ice-candidate',
 
+	// Phase 5 — turn timer
+	TURN_TIMER_STARTED: 'turn-timer-started',
+	TURN_TIMER_EXPIRED: 'turn-timer-expired',
+
 	// Phase 4 — sell assets, market boom, special events
 	SELL_DEAL: 'sell-deal',
 	DEAL_SOLD: 'deal-sold',

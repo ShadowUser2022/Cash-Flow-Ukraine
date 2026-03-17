@@ -484,6 +484,7 @@ app.post("/api/games/:gameId/start", (req, res) => {
   if (gameNamespace) {
     gameNamespace.to(gameId).emit("game-started", { gameId, gameState: game });
     gameNamespace.to(gameId).emit("game-state", game);
+    startTurnTimer(gameId);
   }
 
   res.json({ success: true, game });
@@ -613,6 +614,78 @@ function hasPlayerSelectedDream(playerId) {
 
 // Game namespace
 const gameNamespace = io.of("/game");
+
+// ─────────────────────────────────────────────
+// ⏱️  TURN TIMER
+// ─────────────────────────────────────────────
+const gameTimers = new Map(); // gameId → setTimeout handle
+const TURN_TIMER_DURATION = 90; // seconds per turn
+
+function clearTurnTimer(gameId) {
+  if (gameTimers.has(gameId)) {
+    clearTimeout(gameTimers.get(gameId));
+    gameTimers.delete(gameId);
+    console.log(`⏱️ [TIMER] Cleared for game ${gameId}`);
+  }
+}
+
+function startTurnTimer(gameId, duration) {
+  duration = duration || TURN_TIMER_DURATION;
+  clearTurnTimer(gameId);
+
+  const game = gameStore.get(gameId);
+  if (!game || game.state !== 'in_progress') return;
+
+  const startedAt = Date.now();
+  game.turnTimerStartedAt = startedAt;
+  game.turnTimerDuration = duration;
+  gameStore.set(gameId, game);
+
+  gameNamespace.to(gameId).emit('turn-timer-started', {
+    currentPlayer: game.currentPlayer,
+    startedAt,
+    duration,
+  });
+
+  console.log(`⏱️ [TIMER] ${duration}s for ${game.currentPlayer} in ${gameId}`);
+
+  const handle = setTimeout(() => {
+    const g = gameStore.get(gameId);
+    if (!g || g.state !== 'in_progress') return;
+    if (g.turnTimerStartedAt !== startedAt) return; // timer was already reset
+
+    const expiredPlayerId = g.currentPlayer;
+    const players = g.players;
+    const currentIndex = players.findIndex(p => p.id === expiredPlayerId);
+    const nextIndex = (currentIndex + 1) % players.length;
+    g.currentPlayer = players[nextIndex].id;
+    g.turn = (g.turn || 0) + 1;
+    g.updatedAt = new Date();
+    gameStore.set(gameId, g);
+
+    console.log(`⏱️ [TIMER] EXPIRED: ${expiredPlayerId} → ${g.currentPlayer}`);
+
+    gameNamespace.to(gameId).emit('turn-timer-expired', {
+      expiredPlayerId,
+      currentPlayer: g.currentPlayer,
+      gameState: g,
+    });
+
+    gameNamespace.to(gameId).emit('turn-completed', {
+      playerId: expiredPlayerId,
+      currentPlayer: g.currentPlayer,
+      gameState: g,
+      message: '⏱️ Час вийшов — хід передано автоматично',
+      timestamp: new Date().toISOString(),
+    });
+
+    startTurnTimer(gameId, duration);
+  }, duration * 1000);
+
+  gameTimers.set(gameId, handle);
+}
+// ─────────────────────────────────────────────
+
 gameNamespace.on("connection", (socket) => {
   console.log("Game client connected:", socket.id);
 
@@ -755,6 +828,7 @@ gameNamespace.on("connection", (socket) => {
   // Обробка повного ходу (з використанням реальної механіки)
   socket.on("execute-turn", async ({ gameId, playerId }) => {
     console.log(`🎯 Executing real turn for player ${playerId} in game ${gameId}`);
+    clearTurnTimer(gameId); // ⏱️ гравець діє — зупиняємо зворотній відлік
 
     try {
       // 1. Отримуємо актуальну гру з gameStore
@@ -891,6 +965,7 @@ gameNamespace.on("connection", (socket) => {
           message: `Хід автоматично передано`,
           timestamp: new Date().toISOString(),
         });
+        startTurnTimer(gameId); // ⏱️ запускаємо таймер для наступного гравця
       }
 
     } catch (error) {
@@ -944,6 +1019,7 @@ gameNamespace.on("connection", (socket) => {
       game.turn = (game.turn || 0) + 1;
       game.updatedAt = new Date();
       gameStore.set(gameId, game);
+      startTurnTimer(gameId); // ⏱️ нова черга — новий відлік
     }
 
     gameNamespace.to(gameId).emit("turn-completed", {
@@ -1062,6 +1138,7 @@ gameNamespace.on("connection", (socket) => {
           message: `${player?.name || playerId} купив угоду та передав хід`,
           timestamp: new Date().toISOString(),
         });
+        startTurnTimer(gameId); // ⏱️
 
         emitGameState(gameId);
       } else {

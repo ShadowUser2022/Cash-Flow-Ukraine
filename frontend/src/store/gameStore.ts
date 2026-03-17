@@ -34,6 +34,11 @@ interface GameStore extends GameUIState, WebRTCState {
   currentDeals: Deal[];
   activeNegotiations: Negotiation[];
   
+  // Turn timer
+  turnTimerStartedAt: number | null;
+  turnTimerDuration: number;
+  setTurnTimer: (startedAt: number | null, duration: number) => void;
+
   // Dice animation
   diceAnimation: DiceAnimation;
   
@@ -120,6 +125,10 @@ const useGameStore = create<GameStore>()(
       currentDeals: [],
       activeNegotiations: [],
       
+      // Turn Timer
+      turnTimerStartedAt: null,
+      turnTimerDuration: 90,
+
       // Dice Animation
       diceAnimation: {
         isRolling: false,
@@ -222,6 +231,9 @@ const useGameStore = create<GameStore>()(
       setWebRTCConnectionStatus: (status) => set({ connectionStatus: status }),
       setParticipants: (participants) => set({ participants }),
       
+      // Turn Timer Actions
+      setTurnTimer: (startedAt, duration) => set({ turnTimerStartedAt: startedAt, turnTimerDuration: duration }),
+
       // Dice Actions
       setDiceAnimation: (animation) => set(state => ({
         diceAnimation: { ...state.diceAnimation, ...animation }

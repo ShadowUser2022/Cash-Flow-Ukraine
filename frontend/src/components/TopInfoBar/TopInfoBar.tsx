@@ -1,5 +1,6 @@
 import React from 'react';
 import useGameStore from '../../store/gameStore';
+import TurnTimer from '../TurnTimer/TurnTimer';
 import './TopInfoBar.css';
 
 // TopInfoBar — загальна ігрова шапка для ВСІХ гравців.
@@ -25,6 +26,7 @@ const TopInfoBar: React.FC<TopInfoBarProps> = ({ playerId }) => {
       <div className="tib-status">
         <span className="tib-title">CASHFLOW</span>
         <span className="tib-turn">Хід #{turn}</span>
+        <TurnTimer playerId={playerId} />
       </div>
 
       {/* Карточки гравців */}
