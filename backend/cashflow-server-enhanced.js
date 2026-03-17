@@ -1291,7 +1291,47 @@ gameNamespace.on("connection", (socket) => {
     }
   });
 
-  // sell-deal — handled below (line ~1688, more complete version)
+  // ✅ Продаж активу гравця
+  socket.on("sell-deal", async ({ gameId, playerId, assetId, sellPrice }) => {
+    console.log(`💰 Player ${playerId} selling asset ${assetId} in game ${gameId}`);
+
+    try {
+      const game = gameStore.get(gameId);
+      if (!game) throw new Error("Game not found");
+
+      const result = await GameMechanicsService.sellAsset(game, playerId, assetId, sellPrice);
+
+      if (result.success) {
+        const player = game.players.find(p => p.id === playerId);
+
+        game.updatedAt = new Date();
+        gameStore.set(gameId, game);
+
+        gameNamespace.to(gameId).emit("deal-sold", {
+          playerId,
+          assetId,
+          assetName: assetId,
+          amountReceived: result.amountReceived || 0,
+          profit: result.profit || 0,
+          newCashBalance: player?.finances?.cash || 0,
+          passiveIncome: player?.finances?.passiveIncome || 0,
+          gameState: game,
+        });
+
+        gameNamespace.to(gameId).emit("player-finances-updated", {
+          playerId,
+          finances: player?.finances,
+        });
+
+        emitGameState(gameId);
+      } else {
+        socket.emit("error", { message: result.message });
+      }
+    } catch (error) {
+      console.error("Error processing sell-deal:", error);
+      socket.emit("error", { message: "Помилка при продажу активу" });
+    }
+  });
 
   // Обробка отримання доходу (зарплата, бонуси)
   socket.on(
@@ -1351,7 +1391,7 @@ gameNamespace.on("connection", (socket) => {
         bonusEffect: null,
       };
 
-      if (choice === "donate" || (choice !== "skip" && amount > 0)) {
+      if (choice !== "skip" && amount > 0) {
         // Віднімаємо гроші за благодійність
         result = updatePlayerCash(
           playerId,
@@ -1363,17 +1403,10 @@ gameNamespace.on("connection", (socket) => {
         charityResult.newCashBalance = result.finances.cash;
         charityResult.transaction = result.transaction;
 
-        // ✅ Бонус: 3 ходи з 2 кубиками
-        const game = gameStore.get(gameId);
-        if (game) {
-          const player = game.players.find(p => p.id === playerId);
-          if (player) {
-            player.charityTurnsLeft = 3;
-            gameStore.set(gameId, game);
-            console.log(`❤️ [CHARITY] ${player.name} donated $${amount}. charityTurnsLeft=3`);
-          }
+        // Додаємо бонусний ефект для великої благодійності
+        if (parseInt(choice) >= 20) {
+          charityResult.bonusEffect = "extra_turn";
         }
-        charityResult.bonusEffect = "two_dice_3_turns";
       } else {
         // Якщо пропустили, штрафу поки немає, але можна додати
         const finances = getPlayerFinances(playerId);

@@ -41,13 +41,13 @@ export const DealsPanel: React.FC<DealsPanelProps> = ({ playerId }) => {
 
   // Listen for deal-sold confirmation from server
   useEffect(() => {
-    if (!socketService.isGameConnected) return;
     const handleDealSold = (data: any) => {
-      setLastSoldInfo({
-        assetName: data.assetName || 'Актив',
+      // Знаходимо назву активу зі стейту або з data
+      setLastSoldInfo(prev => ({
+        assetName: data.assetName || (prev as any)?._pendingName || 'Актив',
         amountReceived: data.amountReceived || 0,
         profit: data.profit || 0,
-      });
+      }));
       setSellModal({ isOpen: false, asset: null });
       // Auto-hide sold info after 5s
       setTimeout(() => setLastSoldInfo(null), 5000);
@@ -93,19 +93,22 @@ export const DealsPanel: React.FC<DealsPanelProps> = ({ playerId }) => {
   const confirmSellAsset = () => {
     if (!game || !sellModal.asset) return;
     const asset = sellModal.asset;
-    // sellPrice uses currentMultiplier if set (market boom applied)
     const multiplier = (asset as any).currentMultiplier ?? 1.0;
     const rawSellPrice = Math.floor(asset.cost * multiplier);
+    // Закриваємо модал одразу (не чекаємо deal-sold з сервера)
+    setSellModal({ isOpen: false, asset: null });
+    // Зберігаємо назву для повідомлення
+    setLastSoldInfo({ assetName: asset.name, amountReceived: 0, profit: 0 });
     try {
       socketService.sellAsset(game.id, currentPlayer!.id, asset.id, rawSellPrice);
       addNotification({
         type: 'info',
-        title: '⏳ Продаємо актив...',
-        message: `Відправлено запит на продаж "${asset.name}" за $${rawSellPrice.toLocaleString()}`
+        title: '⏳ Продаємо...',
+        message: `"${asset.name}" за $${rawSellPrice.toLocaleString()}`
       });
     } catch (err) {
       addNotification({ type: 'error', title: 'Помилка', message: 'Не вдалося продати актив' });
-      setSellModal({ isOpen: false, asset: null });
+      setLastSoldInfo(null);
     }
   };
 
