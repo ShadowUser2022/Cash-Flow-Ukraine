@@ -66,6 +66,10 @@ interface GameStore extends GameUIState, WebRTCState {
   // Deal Actions
   buyDeal: (playerId: string, dealId: string) => void;
   sellDeal: (playerId: string, dealId: string) => void;
+
+  // Stock Actions
+  buyStock: (playerId: string, symbol: string, quantity: number) => void;
+  sellStock: (playerId: string, symbol: string, quantity?: number) => void;
   negotiateDeal: (fromPlayerId: string, toPlayerId: string, dealId: string, offer: number) => void;
   setAvailableDeals: (deals: Deal[]) => void;
   addDeal: (deal: Deal) => void;
@@ -184,6 +188,21 @@ const useGameStore = create<GameStore>()(
           socket.emit(SOCKET_EVENTS.SELL_DEAL as any, { gameId: game.id, playerId, assetId: dealId });
         }
       },
+      buyStock: (playerId, symbol, quantity) => {
+        const socket = socketService.getGameSocket();
+        const { game } = get();
+        if (socket && game) {
+          socket.emit(SOCKET_EVENTS.BUY_STOCK as any, { gameId: game.id, playerId, symbol, quantity });
+        }
+      },
+      sellStock: (playerId, symbol, quantity) => {
+        const socket = socketService.getGameSocket();
+        const { game } = get();
+        if (socket && game) {
+          socket.emit(SOCKET_EVENTS.SELL_STOCK as any, { gameId: game.id, playerId, symbol, quantity });
+        }
+      },
+
       negotiateDeal: (fromPlayerId, toPlayerId, dealId, offer) => {
         const socket = socketService.getGameSocket();
         const { game } = get();

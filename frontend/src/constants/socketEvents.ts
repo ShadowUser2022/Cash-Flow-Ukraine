@@ -81,5 +81,11 @@ export const SOCKET_EVENTS = {
 	DEAL_SOLD: 'deal-sold',
 	DIVORCE_APPLIED: 'divorce-applied',
 	CASHFLOW_DAY_COLLECTED: 'cashflow-day-collected',
-	MARKET_BOOM: 'market-boom'
+	MARKET_BOOM: 'market-boom',
+
+	// Phase 6 — stock trading
+	BUY_STOCK: 'buy-stock',
+	SELL_STOCK: 'sell-stock',
+	STOCK_BOUGHT: 'stock-bought',
+	STOCK_SOLD: 'stock-sold',
 } as const;

@@ -1797,6 +1797,132 @@ gameNamespace.on("connection", (socket) => {
     }
   });
 
+  // 📈 Купівля акцій
+  socket.on("buy-stock", ({ gameId, playerId, symbol, quantity }) => {
+    console.log(`📈 [BUY_STOCK] Player ${playerId} buying ${quantity}x ${symbol} in game ${gameId}`);
+    try {
+      const game = gameStore.get(gameId);
+      if (!game) return socket.emit("error", { message: "Гру не знайдено" });
+
+      const player = game.players.find(p => p.id === playerId);
+      if (!player) return socket.emit("error", { message: "Гравця не знайдено" });
+
+      const stock = game.stockMarket && game.stockMarket[symbol];
+      if (!stock) return socket.emit("error", { message: `Акція ${symbol} не знайдена` });
+
+      const qty = parseInt(quantity) || 1;
+      if (qty < 1) return socket.emit("error", { message: "Мінімум 1 акція" });
+
+      const totalCost = stock.pricePerShare * qty;
+      if (player.finances.cash < totalCost) {
+        return socket.emit("error", { message: `Недостатньо коштів. Потрібно $${totalCost}, є $${player.finances.cash}` });
+      }
+
+      // Перевіряємо чи вже є цей тип акцій
+      const existingAsset = player.finances.assets.find(a => a.type === 'stocks' && a.symbol === symbol);
+      if (existingAsset) {
+        // Усереднюємо ціну
+        const prevTotal = existingAsset.cost * (existingAsset.quantity || 1);
+        const newTotal = prevTotal + totalCost;
+        const newQty = (existingAsset.quantity || 1) + qty;
+        existingAsset.quantity = newQty;
+        existingAsset.cost = Math.round(newTotal / newQty);
+        existingAsset.purchasePrice = existingAsset.cost;
+      } else {
+        // Новий актив
+        const newAsset = {
+          id: `stock_${symbol}_${Date.now()}`,
+          name: `${stock.name} (${stock.symbol})`,
+          type: 'stocks',
+          symbol: symbol,
+          quantity: qty,
+          cost: stock.pricePerShare,
+          purchasePrice: stock.pricePerShare,
+          cashFlow: 0,
+          currentMultiplier: 1.0,
+        };
+        player.finances.assets.push(newAsset);
+      }
+
+      player.finances.cash -= totalCost;
+
+      // Перераховуємо passiveIncome (акції без дивідендів — 0, але синк)
+      player.finances.passiveIncome = player.finances.assets.reduce((s, a) => s + (a.cashFlow || 0), 0);
+
+      gameStore.set(gameId, game);
+
+      gameNamespace.to(gameId).emit("stock-bought", {
+        playerId,
+        symbol,
+        quantity: qty,
+        pricePerShare: stock.pricePerShare,
+        totalCost,
+        newCashBalance: player.finances.cash,
+      });
+      gameNamespace.to(gameId).emit("player-finances-updated", { playerId, finances: player.finances });
+      emitGameState(gameId);
+
+      console.log(`✅ [BUY_STOCK] ${player.name} bought ${qty}x ${symbol} @ $${stock.pricePerShare}. Cash left: $${player.finances.cash}`);
+    } catch (err) {
+      console.error("Error buy-stock:", err);
+      socket.emit("error", { message: "Помилка при купівлі акцій" });
+    }
+  });
+
+  // 📉 Продаж акцій
+  socket.on("sell-stock", ({ gameId, playerId, symbol, quantity }) => {
+    console.log(`📉 [SELL_STOCK] Player ${playerId} selling ${quantity ?? 'all'}x ${symbol} in game ${gameId}`);
+    try {
+      const game = gameStore.get(gameId);
+      if (!game) return socket.emit("error", { message: "Гру не знайдено" });
+
+      const player = game.players.find(p => p.id === playerId);
+      if (!player) return socket.emit("error", { message: "Гравця не знайдено" });
+
+      const stock = game.stockMarket && game.stockMarket[symbol];
+      if (!stock) return socket.emit("error", { message: `Акція ${symbol} не знайдена` });
+
+      const assetIdx = player.finances.assets.findIndex(a => a.type === 'stocks' && a.symbol === symbol);
+      if (assetIdx === -1) return socket.emit("error", { message: `У вас немає акцій ${symbol}` });
+
+      const asset = player.finances.assets[assetIdx];
+      const ownedQty = asset.quantity || 1;
+      const sellQty = quantity ? Math.min(parseInt(quantity), ownedQty) : ownedQty;
+      const saleProceeds = stock.pricePerShare * sellQty;
+      const profit = (stock.pricePerShare - asset.cost) * sellQty;
+
+      if (sellQty >= ownedQty) {
+        // Продаємо всі — видаляємо актив
+        player.finances.assets.splice(assetIdx, 1);
+      } else {
+        // Частковий продаж
+        asset.quantity -= sellQty;
+      }
+
+      player.finances.cash += saleProceeds;
+      player.finances.passiveIncome = player.finances.assets.reduce((s, a) => s + (a.cashFlow || 0), 0);
+
+      gameStore.set(gameId, game);
+
+      gameNamespace.to(gameId).emit("stock-sold", {
+        playerId,
+        symbol,
+        quantity: sellQty,
+        pricePerShare: stock.pricePerShare,
+        saleProceeds,
+        profit,
+        newCashBalance: player.finances.cash,
+      });
+      gameNamespace.to(gameId).emit("player-finances-updated", { playerId, finances: player.finances });
+      emitGameState(gameId);
+
+      console.log(`✅ [SELL_STOCK] ${player.name} sold ${sellQty}x ${symbol} @ $${stock.pricePerShare}. Profit: $${profit}. Cash: $${player.finances.cash}`);
+    } catch (err) {
+      console.error("Error sell-stock:", err);
+      socket.emit("error", { message: "Помилка при продажу акцій" });
+    }
+  });
+
   // 💔 Divorce resolve — fallback якщо фронт хоче вручну підтвердити
   // (у нас сума вже списана сервером, але хендлер потрібен для sync)
   socket.on("divorce-resolve", ({ gameId, playerId }) => {
