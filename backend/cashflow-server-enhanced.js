@@ -1391,7 +1391,7 @@ gameNamespace.on("connection", (socket) => {
         bonusEffect: null,
       };
 
-      if (choice !== "skip" && amount > 0) {
+      if (choice === "donate" || (choice !== "skip" && amount > 0)) {
         // Віднімаємо гроші за благодійність
         result = updatePlayerCash(
           playerId,
@@ -1403,10 +1403,17 @@ gameNamespace.on("connection", (socket) => {
         charityResult.newCashBalance = result.finances.cash;
         charityResult.transaction = result.transaction;
 
-        // Додаємо бонусний ефект для великої благодійності
-        if (parseInt(choice) >= 20) {
-          charityResult.bonusEffect = "extra_turn";
+        // ✅ Бонус: 3 ходи з 2 кубиками
+        const game = gameStore.get(gameId);
+        if (game) {
+          const player = game.players.find(p => p.id === playerId);
+          if (player) {
+            player.charityTurnsLeft = 3;
+            gameStore.set(gameId, game);
+            console.log(`❤️ [CHARITY] ${player.name} donated $${amount}. charityTurnsLeft=3`);
+          }
         }
+        charityResult.bonusEffect = "two_dice_3_turns";
       } else {
         // Якщо пропустили, штрафу поки немає, але можна додати
         const finances = getPlayerFinances(playerId);

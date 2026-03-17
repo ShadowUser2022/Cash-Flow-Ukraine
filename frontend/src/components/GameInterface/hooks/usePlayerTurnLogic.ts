@@ -451,6 +451,15 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setP
             updatedGame.players[playerIndex] = player;
             setGame(updatedGame);
             if (player.id === playerId) useGameStore.getState().setCurrentPlayer(player);
+          } else if (cardType === 'charity' && player.finances.cash >= cost) {
+            // Charity: списати + дати 3 ходи з 2 кубиками
+            player.finances.cash -= cost;
+            (player as any).charityTurnsLeft = 3;
+            console.log(`❤️ [OFFLINE] Charity $${cost}. charityTurnsLeft=3`);
+            toasts.transactionToast('expense', cost, '❤️ Благодійний внесок — наступні 3 ходи кидайте 2 кубики!');
+            updatedGame.players[playerIndex] = player;
+            setGame(updatedGame);
+            if (player.id === playerId) useGameStore.getState().setCurrentPlayer(player);
           } else if (player.finances.cash >= cost) {
             player.finances.cash -= cost;
             console.log(`💸 [OFFLINE] Витрачено: $${cost}. Залишок: $${player.finances.cash}`);
@@ -484,6 +493,11 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setP
             // Розлучення — спеціальна подія: ділимо готівку навпіл на бекенді
             socketService.payExpense(game.id, playerId, cost, 'divorce');
             toasts.transactionToast('expense', cost, 'Розлучення — втрата 50% готівки');
+
+          } else if (cardType === 'charity') {
+            // Благодійність — жертвуємо 10% зарплати, отримуємо 3 ходи з 2 кубиками
+            socketService.charityChoice(game.id, playerId, 'donate', cost);
+            toasts.transactionToast('expense', cost, '❤️ Благодійний внесок — наступні 3 ходи кидайте 2 кубики!');
 
           } else if (cardType === 'baby') {
             // Baby event — бекенд вже додав $500 до expenses в processCellEffect
@@ -657,6 +671,9 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setP
     socketService.passBid(game.id, playerId);
   };
 
+  // ❤️ Charity bonus — кількість ходів що залишилось з 2 кубиками
+  const charityTurnsLeft = (currentPlayer as any)?.charityTurnsLeft || 0;
+
   return {
     isMyTurn,
     canMoveToFastTrack,
@@ -670,5 +687,7 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setP
     showAuctionModal,
     handleBid,
     handlePassBid,
+    // Charity bonus
+    charityTurnsLeft,
   };
 }
