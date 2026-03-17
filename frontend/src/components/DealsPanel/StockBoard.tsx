@@ -1,114 +1,77 @@
+/**
+ * StockBoard — торгівля акціями
+ *
+ * Механіка:
+ * 1. Бачиш поточну ціну і графік (тікер)
+ * 2. Купуєш під час СВОГО ходу — ціна списується з Cash
+ * 3. Ціни змінюються коли хтось потрапляє на клітинку 📊 РИНОК
+ * 4. Продаєш з прибутком коли ціна зросла
+ *
+ * Акції НЕ дають дивідендів — заробляєш тільки на різниці курсу (buy low, sell high)
+ */
 import React, { useState, useEffect } from 'react';
 import useGameStore from '../../store/gameStore';
 import { socketService } from '../../services/socketService';
 import { SOCKET_EVENTS } from '../../constants/socketEvents';
 
-// Sparkline — мінімальний SVG-графік
+// ─── Sparkline ────────────────────────────────────────────────────
 const Sparkline: React.FC<{ prices: number[]; width?: number; height?: number }> = ({
-  prices,
-  width = 80,
-  height = 28,
+  prices, width = 60, height = 24,
 }) => {
-  if (!prices || prices.length < 2) {
-    return (
-      <svg width={width} height={height}>
-        <line x1={0} y1={height / 2} x2={width} y2={height / 2} stroke="rgba(255,255,255,0.2)" strokeWidth={1} />
-      </svg>
-    );
-  }
-
-  const min = Math.min(...prices);
-  const max = Math.max(...prices);
-  const range = max - min || 1;
-  const pad = 3;
-
-  const points = prices.map((p, i) => {
+  if (!prices || prices.length < 2) return (
+    <svg width={width} height={height}>
+      <line x1={0} y1={height / 2} x2={width} y2={height / 2} stroke="rgba(255,255,255,0.15)" strokeWidth={1} />
+    </svg>
+  );
+  const min = Math.min(...prices), max = Math.max(...prices), range = max - min || 1, pad = 2;
+  const pts = prices.map((p, i) => {
     const x = pad + (i / (prices.length - 1)) * (width - pad * 2);
     const y = pad + (1 - (p - min) / range) * (height - pad * 2);
     return `${x.toFixed(1)},${y.toFixed(1)}`;
   });
-
-  const lastPrice = prices[prices.length - 1];
-  const firstPrice = prices[0];
-  const isUp = lastPrice >= firstPrice;
+  const isUp = prices[prices.length - 1] >= prices[0];
   const color = isUp ? '#4CAF50' : '#f44336';
-
-  const fillPoints = [
-    `${pad},${height - pad}`,
-    ...points,
-    `${(width - pad).toFixed(1)},${height - pad}`,
-  ].join(' ');
-
+  const fill = [`${pad},${height - pad}`, ...pts, `${(width - pad).toFixed(1)},${height - pad}`].join(' ');
   return (
     <svg width={width} height={height} style={{ display: 'block' }}>
-      <polygon points={fillPoints} fill={`${color}22`} />
-      <polyline
-        points={points.join(' ')}
-        fill="none"
-        stroke={color}
-        strokeWidth={1.5}
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
-      <circle
-        cx={parseFloat(points[points.length - 1].split(',')[0])}
-        cy={parseFloat(points[points.length - 1].split(',')[1])}
-        r={2.5}
-        fill={color}
-      />
+      <polygon points={fill} fill={`${color}18`} />
+      <polyline points={pts.join(' ')} fill="none" stroke={color} strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" />
+      <circle cx={parseFloat(pts[pts.length - 1].split(',')[0])} cy={parseFloat(pts[pts.length - 1].split(',')[1])} r={2.5} fill={color} />
     </svg>
   );
 };
 
-// Маппінг назви активу → символ акції
-const getStockSymbol = (assetName: string): string | null => {
-  if (assetName.includes('NovaTech')) return 'NVT';
-  if (assetName.includes('AgriHolding') || assetName.includes('Золоте поле')) return 'AGH';
-  if (assetName.includes('EnergyPro')) return 'ENP';
-  if (assetName.includes('FinBank')) return 'FNB';
-  if (assetName.includes('StartupX')) return 'STX';
-  return null;
-};
-
-interface TradeNotif {
-  type: 'success' | 'error';
-  msg: string;
-}
-
+// ─── Головний компонент ───────────────────────────────────────────
 const StockBoard: React.FC = () => {
-  const { game, currentPlayer, playerId, buyStock, sellStock } = useGameStore();
+  const { game, currentPlayer, playerId } = useGameStore();
+  const [qty, setQty] = useState<Record<string, number>>({});   // кількість для купівлі
+  const [pending, setPending] = useState<string | null>(null);   // символ в процесі
+  const [notif, setNotif] = useState<{ type: 'ok' | 'err'; msg: string } | null>(null);
 
-  // Стан торгівлі: обраний символ + кількість
-  const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
-  const [quantity, setQuantity] = useState<number>(1);
-  const [tradeNotif, setTradeNotif] = useState<TradeNotif | null>(null);
-  const [pending, setPending] = useState(false);
+  const stockMarket = (game as any)?.stockMarket;
+  const isMyTurn = game?.currentPlayer === playerId;
+  const isOffline = game?.id === 'OFFLINE-MODE' || game?.id === 'DEV-MODE';
+  const cash = currentPlayer?.finances?.cash ?? 0;
 
-  // Слухаємо stock-bought / stock-sold від сервера
+  // Слухаємо відповіді сервера
   useEffect(() => {
     const onBought = (data: any) => {
-      setPending(false);
-      if (data.playerId === playerId) {
-        setTradeNotif({ type: 'success', msg: `✅ Куплено ${data.quantity}x ${data.symbol} @ $${data.pricePerShare}` });
-        setTimeout(() => setTradeNotif(null), 4000);
-        setSelectedSymbol(null);
-        setQuantity(1);
-      }
+      if (data.playerId !== playerId) return;
+      setPending(null);
+      setNotif({ type: 'ok', msg: `✅ Куплено ${data.quantity}×${data.symbol} @ $${data.pricePerShare}` });
+      setTimeout(() => setNotif(null), 4000);
     };
     const onSold = (data: any) => {
-      setPending(false);
-      if (data.playerId === playerId) {
-        const profitStr = data.profit >= 0 ? `+$${data.profit}` : `-$${Math.abs(data.profit)}`;
-        setTradeNotif({ type: 'success', msg: `💰 Продано ${data.quantity}x ${data.symbol} — ${profitStr}` });
-        setTimeout(() => setTradeNotif(null), 4000);
-        setSelectedSymbol(null);
-        setQuantity(1);
-      }
+      if (data.playerId !== playerId) return;
+      setPending(null);
+      const sign = data.profit >= 0 ? '+' : '';
+      setNotif({ type: 'ok', msg: `💰 Продано ${data.quantity}×${data.symbol} — ${sign}$${data.profit}` });
+      setTimeout(() => setNotif(null), 4000);
     };
     const onError = (data: any) => {
-      setPending(false);
-      setTradeNotif({ type: 'error', msg: `❌ ${data.message}` });
-      setTimeout(() => setTradeNotif(null), 4000);
+      setPending(null);
+      setNotif({ type: 'err', msg: `❌ ${data.message}` });
+      setTimeout(() => setNotif(null), 4000);
     };
     socketService.onGameEvent(SOCKET_EVENTS.STOCK_BOUGHT as any, onBought);
     socketService.onGameEvent(SOCKET_EVENTS.STOCK_SOLD as any, onSold);
@@ -120,280 +83,233 @@ const StockBoard: React.FC = () => {
     };
   }, [playerId]);
 
-  const stockMarket = (game as any)?.stockMarket;
-  if (!stockMarket) {
-    return (
-      <div style={{ padding: 16, color: 'rgba(255,255,255,0.4)', fontSize: 13, textAlign: 'center' }}>
-        📊 Ринок ще не ініціалізований
-      </div>
-    );
-  }
+  if (!stockMarket) return (
+    <div style={{ padding: 16, color: 'rgba(255,255,255,0.35)', fontSize: 13, textAlign: 'center' }}>
+      📊 Ринок ще не ініціалізований
+    </div>
+  );
 
-  // Акції у поточного гравця: { [symbol]: { qty, purchasePrice, multiplier, assetId } }
-  const ownedMap: Record<string, { qty: number; purchasePrice: number; multiplier: number }> = {};
-  if (currentPlayer?.finances?.assets) {
-    currentPlayer.finances.assets
-      .filter((a: any) => a.type === 'stocks')
-      .forEach((a: any) => {
-        // пробуємо symbol напряму (нова структура) або маппінг по назві
-        const sym = a.symbol || getStockSymbol(a.name);
-        if (sym) {
-          ownedMap[sym] = {
-            qty: a.quantity || 1,
-            purchasePrice: a.cost || 0,
-            multiplier: a.currentMultiplier ?? 1.0,
-          };
-        }
-      });
-  }
+  // Власні акції
+  const ownedMap: Record<string, { qty: number; purchasePrice: number; assetId: string }> = {};
+  currentPlayer?.finances?.assets
+    ?.filter((a: any) => a.type === 'stocks')
+    ?.forEach((a: any) => {
+      const sym = a.symbol || symFromName(a.name);
+      if (sym) ownedMap[sym] = { qty: a.quantity || 1, purchasePrice: a.cost || 0, assetId: a.id };
+    });
 
   const stocks = Object.values(stockMarket) as Array<{
-    symbol: string;
-    name: string;
-    icon: string;
-    pricePerShare: number;
-    basePrice: number;
-    priceHistory: number[];
+    symbol: string; name: string; icon: string;
+    pricePerShare: number; basePrice: number; priceHistory: number[];
   }>;
 
-  const playerCash = currentPlayer?.finances?.cash ?? 0;
-  const isMyTurn = game?.currentPlayer === playerId;
+  const getQty = (sym: string) => qty[sym] ?? 1;
 
-  const handleBuy = (symbol: string) => {
-    if (!playerId || pending) return;
-    setPending(true);
-    buyStock(playerId, symbol, quantity);
+  const handleBuy = (symbol: string, price: number) => {
+    const q = getQty(symbol);
+    if (!playerId || !game) return;
+    if (cash < price * q) {
+      setNotif({ type: 'err', msg: `Не вистачає $${(price * q - cash).toLocaleString()}` });
+      setTimeout(() => setNotif(null), 3000);
+      return;
+    }
+    setPending(symbol);
+    socketService.getGameSocket()?.emit('buy-stock', { gameId: game.id, playerId, symbol, quantity: q });
   };
 
-  const handleSell = (symbol: string) => {
-    if (!playerId || pending) return;
-    const owned = ownedMap[symbol];
-    if (!owned) return;
-    setPending(true);
-    // продаємо вказану кількість (але не більше ніж є)
-    const sellQty = Math.min(quantity, owned.qty);
-    sellStock(playerId, symbol, sellQty);
+  const handleSell = (symbol: string, ownedQty: number) => {
+    const q = Math.min(getQty(symbol), ownedQty);
+    if (!playerId || !game) return;
+    setPending(symbol);
+    socketService.getGameSocket()?.emit('sell-stock', { gameId: game.id, playerId, symbol, quantity: q });
   };
+
+  // Офлайн режим — продаж/купівля локально
+  const handleBuyOffline = (symbol: string, price: number) => {
+    const q = getQty(symbol);
+    const totalCost = price * q;
+    if (cash < totalCost) {
+      setNotif({ type: 'err', msg: `Не вистачає $${(totalCost - cash).toLocaleString()}` });
+      setTimeout(() => setNotif(null), 3000);
+      return;
+    }
+    const { setGame, setCurrentPlayer } = useGameStore.getState();
+    const g = JSON.parse(JSON.stringify(game));
+    const p = g.players.find((pl: any) => pl.id === playerId);
+    if (!p) return;
+    p.finances.cash -= totalCost;
+    const existing = p.finances.assets.find((a: any) => a.type === 'stocks' && a.symbol === symbol);
+    if (existing) {
+      const prev = existing.cost * existing.quantity;
+      existing.quantity += q;
+      existing.cost = Math.round((prev + totalCost) / existing.quantity);
+    } else {
+      const stock = stockMarket[symbol];
+      p.finances.assets.push({
+        id: `stock_${symbol}_${Date.now()}`, name: `${stock.name} (${symbol})`,
+        type: 'stocks', symbol, quantity: q, cost: price,
+        purchasePrice: price, cashFlow: 0, currentMultiplier: 1.0,
+      });
+    }
+    setGame(g); setCurrentPlayer(p);
+    setNotif({ type: 'ok', msg: `✅ Куплено ${q}×${symbol} @ $${price}` });
+    setTimeout(() => setNotif(null), 4000);
+  };
+
+  const handleSellOffline = (symbol: string, currentPrice: number) => {
+    const { setGame, setCurrentPlayer } = useGameStore.getState();
+    const g = JSON.parse(JSON.stringify(game));
+    const p = g.players.find((pl: any) => pl.id === playerId);
+    if (!p) return;
+    const idx = p.finances.assets.findIndex((a: any) => a.type === 'stocks' && a.symbol === symbol);
+    if (idx === -1) return;
+    const asset = p.finances.assets[idx];
+    const sellQty = Math.min(getQty(symbol), asset.quantity);
+    const proceeds = currentPrice * sellQty;
+    const profit = (currentPrice - asset.cost) * sellQty;
+    p.finances.cash += proceeds;
+    if (sellQty >= asset.quantity) p.finances.assets.splice(idx, 1);
+    else asset.quantity -= sellQty;
+    setGame(g); setCurrentPlayer(p);
+    const sign = profit >= 0 ? '+' : '';
+    setNotif({ type: 'ok', msg: `💰 Продано ${sellQty}×${symbol}: ${sign}$${profit.toLocaleString()}` });
+    setTimeout(() => setNotif(null), 4000);
+  };
+
+  const doBuy = (sym: string, price: number) => isOffline ? handleBuyOffline(sym, price) : handleBuy(sym, price);
+  const doSell = (sym: string, price: number, ownedQty: number) => isOffline ? handleSellOffline(sym, price) : handleSell(sym, ownedQty);
 
   return (
     <div style={{ padding: '8px 0' }}>
       {/* Заголовок */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 8,
-        padding: '0 0 10px', borderBottom: '1px solid rgba(255,255,255,0.1)',
-        marginBottom: 10
-      }}>
-        <span style={{ fontSize: 16 }}>📈</span>
-        <span style={{ color: '#FFD700', fontWeight: 700, fontSize: 13, letterSpacing: 1 }}>
-          ФОНДОВИЙ РИНОК
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 10, borderBottom: '1px solid rgba(255,255,255,0.1)', marginBottom: 10 }}>
+        <span style={{ color: '#FFD700', fontWeight: 700, fontSize: 13, letterSpacing: 1 }}>📈 РИНОК АКЦІЙ</span>
+        <span style={{
+          marginLeft: 'auto', fontSize: 10, padding: '2px 7px', borderRadius: 10,
+          background: isMyTurn ? 'rgba(76,175,80,0.2)' : 'rgba(255,255,255,0.06)',
+          color: isMyTurn ? '#4CAF50' : 'rgba(255,255,255,0.3)',
+        }}>
+          {isMyTurn ? '● твій хід' : '○ не твій хід'}
         </span>
-        {!isMyTurn && (
-          <span style={{ marginLeft: 'auto', fontSize: 10, color: 'rgba(255,255,255,0.35)', fontStyle: 'italic' }}>
-            (не ваш хід)
-          </span>
-        )}
       </div>
 
-      {/* Повідомлення про угоду */}
-      {tradeNotif && (
+      {/* Підказка */}
+      <div style={{ padding: '7px 9px', borderRadius: 6, marginBottom: 10, fontSize: 10, lineHeight: 1.5, background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.45)' }}>
+        💡 <strong style={{ color: 'rgba(255,255,255,0.7)' }}>Стратегія:</strong> Купуй коли ціна низька → чекай поки хтось потрапить на <strong>📊 РИНОК</strong> (ціна зміниться) → продай з прибутком. Акції не дають дивідендів.
+      </div>
+
+      {/* Нотифікація */}
+      {notif && (
         <div style={{
-          padding: '8px 12px', borderRadius: 6, marginBottom: 10, fontSize: 12, fontWeight: 600,
-          background: tradeNotif.type === 'success' ? 'rgba(76,175,80,0.15)' : 'rgba(244,67,54,0.15)',
-          border: `1px solid ${tradeNotif.type === 'success' ? 'rgba(76,175,80,0.4)' : 'rgba(244,67,54,0.4)'}`,
-          color: tradeNotif.type === 'success' ? '#4CAF50' : '#f44336',
-        }}>
-          {tradeNotif.msg}
-        </div>
+          padding: '7px 10px', borderRadius: 6, marginBottom: 8, fontSize: 12, fontWeight: 600,
+          background: notif.type === 'ok' ? 'rgba(76,175,80,0.15)' : 'rgba(244,67,54,0.15)',
+          color: notif.type === 'ok' ? '#4CAF50' : '#f44336',
+          border: `1px solid ${notif.type === 'ok' ? 'rgba(76,175,80,0.3)' : 'rgba(244,67,54,0.3)'}`,
+        }}>{notif.msg}</div>
       )}
 
       {/* Список акцій */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {stocks.map((stock) => {
-          const pct = ((stock.pricePerShare - stock.basePrice) / stock.basePrice) * 100;
-          const isUp = stock.pricePerShare >= stock.basePrice;
-          const owned = ownedMap[stock.symbol];
-          const currentValue = owned ? stock.pricePerShare * owned.qty : null;
-          const profit = owned ? (stock.pricePerShare - owned.purchasePrice) * owned.qty : null;
-          const isSelected = selectedSymbol === stock.symbol;
-          const maxCanBuy = Math.floor(playerCash / stock.pricePerShare);
+        {stocks.map(stock => {
+          const { symbol, name, icon, pricePerShare: price, basePrice, priceHistory } = stock;
+          const pct = ((price - basePrice) / basePrice) * 100;
+          const isUp = price >= basePrice;
+          const owned = ownedMap[symbol];
+          const unrealized = owned ? (price - owned.purchasePrice) * owned.qty : null;
+          const maxBuy = Math.floor(cash / price);
+          const q = getQty(symbol);
+          const isPending = pending === symbol;
 
           return (
-            <div
-              key={stock.symbol}
-              onClick={() => setSelectedSymbol(isSelected ? null : stock.symbol)}
-              style={{
-                background: isSelected
-                  ? 'rgba(245,166,35,0.12)'
-                  : owned
-                    ? 'rgba(245,166,35,0.06)'
-                    : 'rgba(255,255,255,0.04)',
-                border: isSelected
-                  ? '1px solid rgba(245,166,35,0.5)'
-                  : owned
-                    ? '1px solid rgba(245,166,35,0.25)'
-                    : '1px solid rgba(255,255,255,0.08)',
-                borderRadius: 8,
-                padding: '8px 10px',
-                cursor: 'pointer',
-                transition: 'all 0.15s',
-              }}
-            >
-              {/* Рядок: іконка / ціна / % / sparkline */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                {/* Іконка + символ */}
-                <div style={{ width: 38, flexShrink: 0 }}>
-                  <div style={{ fontSize: 14 }}>{stock.icon}</div>
-                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', fontWeight: 600 }}>
-                    {stock.symbol}
-                  </div>
-                </div>
-
-                {/* Назва + ціна */}
+            <div key={symbol} style={{
+              background: owned ? 'rgba(245,166,35,0.07)' : 'rgba(255,255,255,0.03)',
+              border: `1px solid ${owned ? 'rgba(245,166,35,0.25)' : 'rgba(255,255,255,0.07)'}`,
+              borderRadius: 8, padding: '8px 10px',
+            }}>
+              {/* Рядок ціни */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: owned || isMyTurn ? 8 : 0 }}>
+                <div style={{ fontSize: 16 }}>{icon}</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.85)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {stock.name}
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.5)', fontFamily: 'monospace' }}>{symbol}</span>
+                    <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 100 }}>{name}</span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>
-                      ${stock.pricePerShare}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 1 }}>
+                    <span style={{ fontSize: 15, fontWeight: 800, color: '#fff' }}>${price}</span>
+                    <span style={{
+                      fontSize: 10, fontWeight: 600, padding: '1px 5px', borderRadius: 4,
+                      background: pct === 0 ? 'rgba(255,255,255,0.07)' : isUp ? 'rgba(76,175,80,0.15)' : 'rgba(244,67,54,0.15)',
+                      color: pct === 0 ? 'rgba(255,255,255,0.25)' : isUp ? '#4CAF50' : '#f44336',
+                    }}>
+                      {pct === 0 ? 'база' : `${isUp ? '▲' : '▼'}${Math.abs(pct).toFixed(0)}%`}
                     </span>
-                    {pct !== 0 && (
-                      <span style={{
-                        fontSize: 10, fontWeight: 600,
-                        color: isUp ? '#4CAF50' : '#f44336',
-                        background: isUp ? 'rgba(76,175,80,0.15)' : 'rgba(244,67,54,0.15)',
-                        padding: '1px 5px', borderRadius: 4
-                      }}>
-                        {isUp ? '▲' : '▼'}{Math.abs(pct).toFixed(0)}%
-                      </span>
-                    )}
-                    {pct === 0 && (
-                      <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)' }}>= база</span>
-                    )}
                   </div>
-                  {/* Позиція гравця */}
-                  {owned && (
-                    <div style={{ fontSize: 10, color: '#f5a623', marginTop: 2 }}>
-                      Маєте: <strong>{owned.qty} шт.</strong>
-                      {' · '}
-                      <span style={{ color: profit !== null && profit >= 0 ? '#4CAF50' : '#f44336' }}>
-                        {profit !== null && profit >= 0 ? '+' : ''}${profit?.toLocaleString()}
-                      </span>
-                      {' · '}${currentValue?.toLocaleString()}
-                    </div>
-                  )}
                 </div>
-
-                {/* Sparkline */}
-                <div style={{ flexShrink: 0 }}>
-                  <Sparkline prices={stock.priceHistory} width={66} height={26} />
-                </div>
+                <Sparkline prices={priceHistory} width={56} height={24} />
               </div>
 
-              {/* ─── Панель торгівлі (розкривається при кліку) ─── */}
-              {isSelected && (
-                <div
-                  style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.1)' }}
-                  onClick={e => e.stopPropagation()}
-                >
+              {/* Позиція (якщо є) */}
+              {owned && (
+                <div style={{
+                  padding: '5px 7px', borderRadius: 5, marginBottom: 6,
+                  background: 'rgba(245,166,35,0.1)', fontSize: 11,
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                }}>
+                  <span style={{ color: '#f5a623' }}>
+                    📦 {owned.qty} шт. @ ${owned.purchasePrice}
+                  </span>
+                  <span style={{ fontWeight: 700, color: unrealized !== null && unrealized >= 0 ? '#4CAF50' : '#f44336' }}>
+                    {unrealized !== null ? `${unrealized >= 0 ? '+' : ''}$${unrealized.toLocaleString()}` : ''}
+                  </span>
+                </div>
+              )}
+
+              {/* Панель торгівлі — тільки у свій хід */}
+              {isMyTurn && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                   {/* Кількість */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                    <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', minWidth: 58 }}>Кількість:</span>
-                    <button
-                      onClick={() => setQuantity(q => Math.max(1, q - 1))}
-                      style={btnSmall}
-                    >−</button>
-                    <input
-                      type="number"
-                      value={quantity}
-                      min={1}
-                      max={owned ? owned.qty : maxCanBuy || 1}
-                      onChange={e => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                      style={{
-                        width: 48, textAlign: 'center', fontSize: 13, fontWeight: 700,
-                        background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)',
-                        color: '#fff', borderRadius: 5, padding: '3px 4px',
-                      }}
-                    />
-                    <button
-                      onClick={() => setQuantity(q => q + 1)}
-                      style={btnSmall}
-                    >+</button>
-                    {!owned && maxCanBuy > 0 && (
-                      <button
-                        onClick={() => setQuantity(maxCanBuy)}
-                        style={{ ...btnSmall, fontSize: 9, padding: '3px 6px', marginLeft: 2 }}
-                      >MAX</button>
-                    )}
-                    {owned && (
-                      <button
-                        onClick={() => setQuantity(owned.qty)}
-                        style={{ ...btnSmall, fontSize: 9, padding: '3px 6px', marginLeft: 2 }}
-                      >ALL</button>
-                    )}
-                  </div>
+                  <button onClick={() => setQty(p => ({ ...p, [symbol]: Math.max(1, (p[symbol] ?? 1) - 1) }))} style={smallBtn}>−</button>
+                  <input
+                    type="number" min={1} value={q}
+                    onChange={e => setQty(p => ({ ...p, [symbol]: Math.max(1, parseInt(e.target.value) || 1) }))}
+                    style={{
+                      width: 42, textAlign: 'center', fontSize: 12, fontWeight: 700,
+                      background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)',
+                      color: '#fff', borderRadius: 4, padding: '3px 2px',
+                    }}
+                  />
+                  <button onClick={() => setQty(p => ({ ...p, [symbol]: (p[symbol] ?? 1) + 1 }))} style={smallBtn}>+</button>
 
-                  {/* Сума */}
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 8 }}>
-                    Вартість: <strong style={{ color: '#fff' }}>${(quantity * stock.pricePerShare).toLocaleString()}</strong>
-                    {!owned && maxCanBuy > 0 && (
-                      <span style={{ color: 'rgba(255,255,255,0.3)', marginLeft: 6 }}>
-                        (макс. {maxCanBuy} шт.)
-                      </span>
-                    )}
-                  </div>
+                  {/* Купити */}
+                  <button
+                    disabled={isPending || maxBuy < 1}
+                    onClick={() => doBuy(symbol, price)}
+                    style={{
+                      flex: 1, padding: '5px 0', borderRadius: 5, border: 'none', cursor: maxBuy >= 1 ? 'pointer' : 'default',
+                      fontWeight: 700, fontSize: 11,
+                      background: maxBuy >= 1 ? 'rgba(76,175,80,0.2)' : 'rgba(255,255,255,0.05)',
+                      color: maxBuy >= 1 ? '#4CAF50' : 'rgba(255,255,255,0.2)',
+                    }}
+                    title={maxBuy >= 1 ? `Вартість: $${(price * q).toLocaleString()}` : 'Недостатньо коштів'}
+                  >
+                    {isPending ? '⏳' : `📈 $${(price * q).toLocaleString()}`}
+                  </button>
 
-                  {/* Кнопки */}
-                  <div style={{ display: 'flex', gap: 6 }}>
+                  {/* Продати (якщо є) */}
+                  {owned && (
                     <button
-                      disabled={!isMyTurn || pending || quantity < 1 || playerCash < quantity * stock.pricePerShare}
-                      onClick={() => handleBuy(stock.symbol)}
+                      disabled={isPending || q > owned.qty}
+                      onClick={() => doSell(symbol, price, owned.qty)}
                       style={{
-                        flex: 1, padding: '6px 0', borderRadius: 6, border: 'none',
-                        fontWeight: 700, fontSize: 12, cursor: 'pointer',
-                        background: (!isMyTurn || pending || playerCash < quantity * stock.pricePerShare)
-                          ? 'rgba(255,255,255,0.08)'
-                          : 'rgba(76,175,80,0.25)',
-                        color: (!isMyTurn || pending || playerCash < quantity * stock.pricePerShare)
-                          ? 'rgba(255,255,255,0.25)'
-                          : '#4CAF50',
-                        border: '1px solid',
-                        borderColor: (!isMyTurn || pending || playerCash < quantity * stock.pricePerShare)
-                          ? 'rgba(255,255,255,0.1)'
-                          : 'rgba(76,175,80,0.4)',
+                        flex: 1, padding: '5px 0', borderRadius: 5, border: 'none', cursor: q <= owned.qty ? 'pointer' : 'default',
+                        fontWeight: 700, fontSize: 11,
+                        background: q <= owned.qty ? 'rgba(244,67,54,0.18)' : 'rgba(255,255,255,0.05)',
+                        color: q <= owned.qty ? '#f44336' : 'rgba(255,255,255,0.2)',
                       }}
+                      title={`Продати ${q} шт. → +$${(price * Math.min(q, owned.qty)).toLocaleString()}`}
                     >
-                      {pending ? '⏳' : '📈 Купити'}
+                      {isPending ? '⏳' : `📉 $${(price * Math.min(q, owned.qty)).toLocaleString()}`}
                     </button>
-
-                    {owned && (
-                      <button
-                        disabled={!isMyTurn || pending || quantity > owned.qty}
-                        onClick={() => handleSell(stock.symbol)}
-                        style={{
-                          flex: 1, padding: '6px 0', borderRadius: 6, border: 'none',
-                          fontWeight: 700, fontSize: 12, cursor: 'pointer',
-                          background: (!isMyTurn || pending || quantity > owned.qty)
-                            ? 'rgba(255,255,255,0.08)'
-                            : 'rgba(244,67,54,0.2)',
-                          color: (!isMyTurn || pending || quantity > owned.qty)
-                            ? 'rgba(255,255,255,0.25)'
-                            : '#f44336',
-                          border: '1px solid',
-                          borderColor: (!isMyTurn || pending || quantity > owned.qty)
-                            ? 'rgba(255,255,255,0.1)'
-                            : 'rgba(244,67,54,0.35)',
-                        }}
-                      >
-                        {pending ? '⏳' : '📉 Продати'}
-                      </button>
-                    )}
-                  </div>
-
-                  {!isMyTurn && (
-                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', marginTop: 6, textAlign: 'center' }}>
-                      Торгівля доступна лише у ваш хід
-                    </div>
                   )}
                 </div>
               )}
@@ -402,28 +318,28 @@ const StockBoard: React.FC = () => {
         })}
       </div>
 
-      {/* Легенда */}
-      <div style={{
-        marginTop: 10, padding: '8px 10px',
-        background: 'rgba(255,255,255,0.03)',
-        borderRadius: 6, fontSize: 10,
-        color: 'rgba(255,255,255,0.4)',
-        lineHeight: 1.6
-      }}>
-        <span style={{ color: '#4CAF50' }}>▲ Зростання</span>
-        {' · '}
-        <span style={{ color: '#f44336' }}>▼ Падіння</span>
-        {' · '}Натисніть на акцію для торгівлі
+      {/* Пояснення зміни цін */}
+      <div style={{ marginTop: 10, padding: '7px 9px', borderRadius: 5, fontSize: 10, color: 'rgba(255,255,255,0.3)', lineHeight: 1.5, background: 'rgba(255,255,255,0.02)' }}>
+        📊 Ціни змінюються коли хтось потрапляє на клітинку РИНОК — може бути бум (×2÷×3) або обвал (×0.5). Слідкуй за графіком!
       </div>
     </div>
   );
 };
 
-const btnSmall: React.CSSProperties = {
-  width: 24, height: 24, borderRadius: 5, border: '1px solid rgba(255,255,255,0.15)',
-  background: 'rgba(255,255,255,0.08)', color: '#fff', fontSize: 14,
+const smallBtn: React.CSSProperties = {
+  width: 22, height: 22, borderRadius: 4, border: '1px solid rgba(255,255,255,0.15)',
+  background: 'rgba(255,255,255,0.07)', color: '#ccc', fontSize: 13,
   cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-  flexShrink: 0,
+  flexShrink: 0, padding: 0,
 };
+
+function symFromName(name: string): string | null {
+  if (name?.includes('NovaTech')) return 'NVT';
+  if (name?.includes('AgriHolding')) return 'AGH';
+  if (name?.includes('EnergyPro')) return 'ENP';
+  if (name?.includes('FinBank')) return 'FNB';
+  if (name?.includes('StartupX')) return 'STX';
+  return null;
+}
 
 export default StockBoard;

@@ -92,7 +92,14 @@ export class GameMechanicsService {
 			};
 		}
 
-		const diceResult = Math.floor(Math.random() * GAME_CONSTANTS.DICE_SIDES) + 1;
+		// ❤️ Charity bonus: якщо є charityTurnsLeft > 0 — кидаємо 2 кубики, беремо суму
+		let diceResult = Math.floor(Math.random() * GAME_CONSTANTS.DICE_SIDES) + 1;
+		if ((player as any).charityTurnsLeft > 0) {
+			const dice2 = Math.floor(Math.random() * GAME_CONSTANTS.DICE_SIDES) + 1;
+			diceResult += dice2;
+			(player as any).charityTurnsLeft -= 1;
+			console.log(`❤️ [CHARITY BONUS] ${player.name} rolled 2 dice: ${diceResult}. Turns left: ${(player as any).charityTurnsLeft}`);
+		}
 		let passedPayday = false;
 
 		if (player.isOnFastTrack) {

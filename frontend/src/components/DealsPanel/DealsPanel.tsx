@@ -6,6 +6,35 @@ import type { Deal, Player, Asset } from '../../types';
 import StockBoard from './StockBoard';
 import './DealsPanel.css';
 
+// Локальний продаж активу (offline / DEV режим — без сервера)
+function applySellLocally(
+  game: any,
+  playerId: string,
+  asset: Asset,
+  sellPrice: number,
+  setGame: (g: any) => void,
+  setCurrentPlayer: (p: any) => void
+) {
+  const mortgage = (asset as any).mortgage ?? 0;
+  const netProceeds = sellPrice - mortgage;
+  if (netProceeds < 0) return { success: false, message: 'Іпотека перевищує ціну продажу' };
+
+  // Мутуємо клон гри
+  const updatedGame = JSON.parse(JSON.stringify(game));
+  const player = updatedGame.players.find((p: any) => p.id === playerId);
+  if (!player) return { success: false, message: 'Гравця не знайдено' };
+
+  player.finances.cash += netProceeds;
+  if (asset.cashFlow > 0) {
+    player.finances.passiveIncome = Math.max(0, player.finances.passiveIncome - asset.cashFlow);
+  }
+  player.finances.assets = player.finances.assets.filter((a: any) => a.id !== asset.id);
+
+  setGame(updatedGame);
+  setCurrentPlayer(player);
+  return { success: true, netProceeds };
+}
+
 interface DealsPanelProps {
   playerId: string;
 }
@@ -46,18 +75,26 @@ export const DealsPanel: React.FC<DealsPanelProps> = ({ playerId }) => {
   // Listen for deal-sold confirmation from server
   useEffect(() => {
     const handleDealSold = (data: any) => {
-      // Знаходимо назву активу зі стейту або з data
-      setLastSoldInfo(prev => ({
-        assetName: data.assetName || (prev as any)?._pendingName || 'Актив',
+      setLastSoldInfo({
+        assetName: data.assetName || data.assetId || 'Актив',
         amountReceived: data.amountReceived || 0,
         profit: data.profit || 0,
-      }));
+      });
       setSellModal({ isOpen: false, asset: null });
-      // Auto-hide sold info after 5s
       setTimeout(() => setLastSoldInfo(null), 5000);
     };
+    // Слухаємо помилки від сервера (напр. "Гру не знайдено" в offline режимі)
+    const handleServerError = (data: any) => {
+      addNotification({ type: 'error', title: '❌ Помилка сервера', message: data?.message || 'Невідома помилка' });
+      setSellModal({ isOpen: false, asset: null });
+      setLastSoldInfo(null);
+    };
     socketService.onGameEvent('deal-sold' as any, handleDealSold);
-    return () => socketService.offGameEvent('deal-sold' as any, handleDealSold);
+    socketService.onGameEvent('error' as any, handleServerError);
+    return () => {
+      socketService.offGameEvent('deal-sold' as any, handleDealSold);
+      socketService.offGameEvent('error' as any, handleServerError);
+    };
   }, []);
 
   const currentPlayer = game?.players.find((p: Player) => p.id === playerId);
@@ -99,19 +136,35 @@ export const DealsPanel: React.FC<DealsPanelProps> = ({ playerId }) => {
     const asset = sellModal.asset;
     const multiplier = (asset as any).currentMultiplier ?? 1.0;
     const rawSellPrice = Math.floor(asset.cost * multiplier);
-    // Закриваємо модал одразу (не чекаємо deal-sold з сервера)
+    const mortgage = (asset as any).mortgage ?? 0;
+    const netProceeds = rawSellPrice - mortgage;
+    const purchasePrice = (asset as any).purchasePrice ?? asset.cost;
+    const profit = netProceeds - purchasePrice;
+
     setSellModal({ isOpen: false, asset: null });
-    // Зберігаємо назву для повідомлення
+
+    // Офлайн / DEV режим — застосовуємо локально, без сервера
+    const isOffline = game.id === 'OFFLINE-MODE' || game.id === 'DEV-MODE';
+    if (isOffline) {
+      const { setGame, setCurrentPlayer } = useGameStore.getState();
+      const result = applySellLocally(game, currentPlayer!.id, asset, rawSellPrice, setGame, setCurrentPlayer);
+      if (result.success) {
+        setLastSoldInfo({ assetName: asset.name, amountReceived: result.netProceeds!, profit });
+        addNotification({ type: 'success', title: '✅ Продано!', message: `"${asset.name}" — +$${result.netProceeds!.toLocaleString()}` });
+        setTimeout(() => setLastSoldInfo(null), 5000);
+      } else {
+        addNotification({ type: 'error', title: 'Помилка', message: result.message! });
+      }
+      return;
+    }
+
+    // Онлайн режим — через сервер
     setLastSoldInfo({ assetName: asset.name, amountReceived: 0, profit: 0 });
     try {
       socketService.sellAsset(game.id, currentPlayer!.id, asset.id, rawSellPrice);
-      addNotification({
-        type: 'info',
-        title: '⏳ Продаємо...',
-        message: `"${asset.name}" за $${rawSellPrice.toLocaleString()}`
-      });
+      addNotification({ type: 'info', title: '⏳ Продаємо...', message: `"${asset.name}" за $${rawSellPrice.toLocaleString()}` });
     } catch (err) {
-      addNotification({ type: 'error', title: 'Помилка', message: 'Не вдалося продати актив' });
+      addNotification({ type: 'error', title: 'Помилка', message: 'Немає підключення до сервера' });
       setLastSoldInfo(null);
     }
   };
