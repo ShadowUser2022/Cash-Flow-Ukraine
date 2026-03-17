@@ -1923,6 +1923,20 @@ gameNamespace.on("connection", (socket) => {
     }
   });
 
+  // 🔧 DEBUG — додати готівку гравцю (тільки для розробки)
+  socket.on('debug-add-cash', ({ gameId, playerId, amount }) => {
+    const game = gameStore.get(gameId);
+    if (!game) return;
+    const player = game.players.find(p => p.id === playerId);
+    if (!player) return;
+    const add = Math.min(Math.max(parseInt(amount) || 10000, 0), 1000000);
+    player.finances.cash += add;
+    gameStore.set(gameId, game);
+    gameNamespace.to(gameId).emit('player-finances-updated', { playerId, finances: player.finances });
+    emitGameState(gameId);
+    console.log(`🔧 [DEBUG] +$${add} → ${player.name}. Cash: $${player.finances.cash}`);
+  });
+
   // 💔 Divorce resolve — fallback якщо фронт хоче вручну підтвердити
   // (у нас сума вже списана сервером, але хендлер потрібен для sync)
   socket.on("divorce-resolve", ({ gameId, playerId }) => {

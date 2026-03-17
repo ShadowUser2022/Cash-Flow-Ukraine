@@ -15,6 +15,7 @@ import RightSidebar from '../RightSidebar/RightSidebar';
 // MobileNavigation (Sidebars.tsx) removed — LeftSidebar/RightSidebar handle mobile
 import WinScreen from '../WinScreen/WinScreen';
 import AuctionModal from './ui/AuctionModal';
+import MechanicsDebugOverlay from '../DebugPanel/MechanicsDebugOverlay';
 
 
 interface GameInterfaceProps {
@@ -191,6 +192,9 @@ const GameInterface: React.FC<GameInterfaceProps> = ({ gameId, playerId }) => {
         handleRightSidebarToggle={handleRightSidebarToggle}
       />
       {/* MobileNavigation removed — LeftSidebar/RightSidebar handle all platforms */}
+
+      {/* 🔧 Debug overlay — завжди доступний (Ctrl+Shift+D або кнопка 🔧) */}
+      <MechanicsDebugOverlay />
 
       {/* Екран перемоги */}
       {isWon && currentPlayer && (
