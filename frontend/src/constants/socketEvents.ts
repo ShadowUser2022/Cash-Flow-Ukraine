@@ -88,4 +88,11 @@ export const SOCKET_EVENTS = {
 	SELL_STOCK: 'sell-stock',
 	STOCK_BOUGHT: 'stock-bought',
 	STOCK_SOLD: 'stock-sold',
+
+	// Phase 7 — auction (large deals)
+	LARGE_DEAL_AUCTION_STARTED: 'large-deal-auction-started',
+	PLACE_BID: 'place-bid',
+	PASS_BID: 'pass-bid',
+	AUCTION_BID_PLACED: 'auction-bid-placed',
+	AUCTION_COMPLETED: 'auction-completed',
 } as const;

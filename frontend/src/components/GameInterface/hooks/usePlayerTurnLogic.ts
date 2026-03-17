@@ -36,6 +36,20 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setP
   const [currentAuction, setCurrentAuction] = useState<any>(null);
   const [showAuctionModal, setShowAuctionModal] = useState(false);
 
+  // 🔄 Sync: якщо game.currentAuction є (reconnect / відсутній socket event) — показуємо модал
+  useEffect(() => {
+    const gameAuction = (game as any)?.currentAuction;
+    if (gameAuction && gameAuction.status === 'active') {
+      setCurrentAuction(gameAuction);
+      setShowAuctionModal(true);
+    } else if (!gameAuction && showAuctionModal) {
+      // Аукціон завершився — game-state прийшов без currentAuction
+      setShowAuctionModal(false);
+      setCurrentAuction(null);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [(game as any)?.currentAuction]);
+
   // Ефект для прослуховування результатів ходу через сокети
   useEffect(() => {
     // ⚠️ FIX: Не блокуємо реєстрацію — сокет може ще не бути connected в момент монтування
