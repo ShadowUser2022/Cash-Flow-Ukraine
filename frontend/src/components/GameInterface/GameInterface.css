@@ -429,8 +429,9 @@
     width: 100vw !important;
     max-width: 100vw !important;
     border-radius: 0 !important;
-    top: 0 !important;
-    height: 100vh !important;
+    top: 56px !important;
+    height: calc(100vh - 56px) !important;
+    overflow-y: auto !important;
   }
 }
 
@@ -501,8 +502,9 @@
     width: 100vw !important;
     max-width: 100vw !important;
     border-radius: 0 !important;
-    top: 0 !important;
-    height: 100vh !important;
+    top: 56px !important;
+    height: calc(100vh - 56px) !important;
+    overflow-y: auto !important;
   }
 }
 

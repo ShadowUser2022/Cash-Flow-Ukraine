@@ -1,23 +1,25 @@
 import React from 'react';
+import GameInfoPanel from '../GameInfoPanel/GameInfoPanel';
 import DealsPanel from '../DealsPanel/DealsPanel';
+import type { Game, Player } from '../../types/game';
 import { useTouchGestures, useIsMobile } from '../../hooks/useTouchGestures';
-
-// Правий sidebar — ТІЛЬКИ дії гравця:
-// Угоди (купити), Активи (продати), Ринок (графіки акцій)
-// Статус гри — у TopInfoBar. Фінанси — у лівому sidebar.
 
 interface RightSidebarProps {
   open: boolean;
+  game: Game;
+  currentPlayer: Player;
   playerId: string;
   onToggle?: () => void;
-  // game і currentPlayer більше не потрібні тут — DealsPanel читає зі store
 }
 
-const RightSidebar: React.FC<RightSidebarProps> = ({ open, playerId, onToggle }) => {
+const RightSidebar: React.FC<RightSidebarProps> = ({ open, game, currentPlayer, playerId, onToggle }) => {
   const isMobile = useIsMobile();
 
+  // Swipe gesture to close
   useTouchGestures({
-    onSwipeRight: () => { if (open && onToggle) onToggle(); }
+    onSwipeRight: () => {
+      if (open && onToggle) onToggle();
+    }
   });
 
   return (
@@ -25,9 +27,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ open, playerId, onToggle })
       {isMobile && open && (
         <button className="sidebar-close-btn" onClick={onToggle}>✕</button>
       )}
-      <div className="right-sidebar-header">
-        <span className="right-sidebar-title">💼 Угоди & Ринок</span>
-      </div>
+      <GameInfoPanel game={game} currentPlayer={currentPlayer} />
       <DealsPanel playerId={playerId} />
     </div>
   );

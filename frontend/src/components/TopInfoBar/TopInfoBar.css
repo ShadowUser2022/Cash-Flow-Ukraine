@@ -1,175 +1,146 @@
-/* ─── TOP INFO BAR — загальна ігрова шапка ─── */
 .top-info-bar {
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
-  height: 56px;
+  min-height: 56px;
   display: flex;
   align-items: center;
-  gap: 0;
-  background: #0d0d0d;
-  border-bottom: 1.5px solid rgba(255, 215, 0, 0.3);
-  padding: 0 16px;
+  justify-content: space-between;
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+  border-bottom: 2px solid #FFD700;
+  padding: 10px 32px 10px 24px;
+  font-size: 1.08rem;
   z-index: 2100;
-  box-shadow: 0 2px 16px rgba(0,0,0,0.5);
-  overflow: hidden;
+  box-shadow: 0 4px 24px rgba(255,215,0,0.10);
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 20px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
 }
 
-/* Статус гри зліва */
-.tib-status {
+.top-info-bar:hover {
+  background: linear-gradient(135deg, #151515 0%, #252525 100%);
+}
+
+.player-info {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  min-width: 72px;
-  padding-right: 12px;
-  border-right: 1px solid rgba(255,255,255,0.1);
-  margin-right: 12px;
+  gap: 12px;
 }
 
-.tib-title {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 1.5px;
+.collapse-icon {
+  margin-left: 8px;
+  font-size: 0.8em;
   color: #FFD700;
-  line-height: 1;
+  transition: transform 0.3s ease;
 }
 
-.tib-turn {
-  font-size: 11px;
-  color: rgba(255,255,255,0.5);
-  margin-top: 2px;
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid #FFD700;
+  object-fit: cover;
+  background: #222;
 }
-
-/* Список гравців — горизонтальний скрол */
-.tib-players {
+.player-name {
+  font-weight: 600;
+  color: #FFF8DC;
+}
+.profession {
+  color: #B8860B;
+  font-size: 0.95em;
+}
+.metrics {
   display: flex;
-  gap: 8px;
-  align-items: stretch;
-  overflow-x: auto;
-  flex: 1;
-  scrollbar-width: none;
+  gap: 24px;
+  align-items: center;
+  transition: opacity 0.3s ease;
 }
-.tib-players::-webkit-scrollbar { display: none; }
-
-/* Картка гравця */
-.tib-player {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  min-width: 140px;
-  max-width: 180px;
-  padding: 4px 10px;
+.metrics span {
+  background: rgba(34, 34, 34, 0.7);
   border-radius: 8px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
-  transition: border-color 0.2s;
-  flex-shrink: 0;
+  padding: 6px 14px;
+  color: #ccc;
+  font-weight: 500;
+  font-size: 1em;
+  box-shadow: 0 2px 8px rgba(255, 215, 0, 0.05);
 }
 
-.tib-player.active {
-  background: rgba(255,215,0,0.08);
-  border-color: rgba(255,215,0,0.5);
-}
-
-.tib-player.me {
-  border-color: rgba(100,160,255,0.4);
-}
-
-.tib-player.ft {
-  background: rgba(76,175,80,0.08);
-  border-color: rgba(76,175,80,0.35);
-}
-
-.tib-turn-icon {
-  position: absolute;
-  top: -2px;
-  right: 4px;
-  font-size: 13px;
-  animation: tib-bounce 0.7s ease-in-out infinite alternate;
-}
-@keyframes tib-bounce {
-  from { transform: translateY(0); }
-  to   { transform: translateY(-3px); }
-}
-
-.tib-pname {
-  font-size: 11px;
-  font-weight: 700;
-  color: #fff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: flex;
+.mini-stats {
+  display: none;
+  gap: 12px;
   align-items: center;
-  gap: 4px;
-}
-
-.tib-badge {
-  font-size: 9px;
-  background: rgba(100,160,255,0.25);
-  color: #6ab0ff;
-  border-radius: 3px;
-  padding: 1px 4px;
+  color: #FF8C00;
   font-weight: 600;
+  font-size: 0.9rem;
 }
 
-.tib-nums {
+.progress {
   display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 2px;
+  flex-direction: column;
+  align-items: flex-end;
+  min-width: 120px;
 }
-
-.tib-cash {
-  font-size: 11px;
-  font-weight: 700;
-  color: #FFD700;
+progress {
+  width: 100px;
+  height: 12px;
+  accent-color: #FFD700;
+  background: #222;
+  border-radius: 6px;
+  margin-bottom: 2px;
 }
-
-.tib-cf {
-  font-size: 10px;
-  font-weight: 600;
+.progress-label {
+  font-size: 0.95em;
+  color: #FFA500;
+  font-weight: 500;
 }
-.tib-cf.pos { color: #4CAF50; }
-.tib-cf.neg { color: #f44336; }
+@media (max-width: 900px) {
+  .top-info-bar {
+    padding: 8px 16px;
+    font-size: 0.98rem;
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
+    min-height: 48px;
+  }
 
-/* Прогрес-бар */
-.tib-bar {
-  position: relative;
-  height: 4px;
-  background: rgba(255,255,255,0.12);
-  border-radius: 2px;
-  margin-top: 4px;
-  overflow: hidden;
-}
+  .top-info-bar.expanded {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
 
-.tib-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #3b82f6, #10b981);
-  border-radius: 2px;
-  transition: width 0.4s ease;
-}
+  .top-info-bar.collapsed {
+    padding: 6px 16px;
+  }
 
-.tib-pct {
-  position: absolute;
-  right: 0;
-  top: -12px;
-  font-size: 9px;
-  color: rgba(255,255,255,0.4);
-}
+  .top-info-bar.collapsed .mini-stats {
+    display: flex;
+  }
 
-.tib-ft {
-  font-size: 10px;
-  color: #4CAF50;
-  font-weight: 700;
-  margin-top: 3px;
-}
+  .metrics {
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
 
-@media (max-width: 768px) {
-  .top-info-bar { height: 48px; padding: 0 10px; }
-  .tib-player { min-width: 110px; padding: 3px 8px; }
-  .tib-title { display: none; }
+  .metrics span {
+    padding: 4px 10px;
+    font-size: 0.9rem;
+  }
+
+  .player-info {
+    justify-content: center;
+  }
+
+  .progress {
+    align-items: center;
+    min-width: unset;
+  }
+  
+  .avatar {
+    width: 32px;
+    height: 32px;
+  }
 }

@@ -77,7 +77,6 @@ const GameInterface: React.FC<GameInterfaceProps> = ({ gameId, playerId }) => {
     showAuctionModal,
     handleBid,
     handlePassBid,
-    charityTurnsLeft,
   } = usePlayerTurnLogic({
     game,
     playerId,
@@ -94,8 +93,20 @@ const GameInterface: React.FC<GameInterfaceProps> = ({ gameId, playerId }) => {
 
   return (
     <div className="game-interface">
-      {/* Top Info Bar — статус гри для всіх гравців */}
-      {game && <TopInfoBar playerId={playerId} />}
+      {/* Top Info Bar — фінансовий огляд */}
+      {game && currentPlayer && (
+        <TopInfoBar
+          playerName={currentPlayer.name}
+          avatarUrl={currentPlayer.avatar}
+          profession={currentPlayer.profession.name}
+          cash={currentPlayer.finances.cash}
+          passiveIncome={currentPlayer.finances.passiveIncome}
+          expenses={currentPlayer.finances.expenses}
+          assetsCount={currentPlayer.finances.assets?.length || 0}
+          liabilitiesTotal={currentPlayer.finances.liabilities?.reduce((sum, l) => sum + (l.amount || 0), 0) || 0}
+          dream={{ name: 'Мрія', amount: 0 }}
+        />
+      )}
       {/* Головна ігрова дошка */}
       {game && currentPlayer ? (
         <GameBoard
@@ -139,9 +150,11 @@ const GameInterface: React.FC<GameInterfaceProps> = ({ gameId, playerId }) => {
         <span className="toggle-arrow">{rightSidebarOpen ? '▶' : '◀'}</span>
         <span className="toggle-label">{rightSidebarOpen ? 'Закрити' : '🎲 Угоди'}</span>
       </button>
-      {game && (
+      {game && currentPlayer && (
         <RightSidebar
           open={rightSidebarOpen}
+          game={game}
+          currentPlayer={currentPlayer}
           playerId={playerId}
           onToggle={handleRightSidebarToggle}
         />
@@ -153,18 +166,6 @@ const GameInterface: React.FC<GameInterfaceProps> = ({ gameId, playerId }) => {
         show={showEventCard}
         onAction={handleEventCardAction}
       />
-
-      {/* ❤️ Charity bonus indicator — кубики x2 */}
-      {charityTurnsLeft > 0 && (
-        <div style={{
-          position: 'fixed', top: 70, left: '50%', transform: 'translateX(-50%)',
-          background: 'rgba(233,30,99,0.9)', color: '#fff', borderRadius: 20,
-          padding: '6px 16px', fontSize: 13, fontWeight: 700, zIndex: 900,
-          pointerEvents: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.4)'
-        }}>
-          ❤️ Кубики ×2 ще {charityTurnsLeft} {charityTurnsLeft === 1 ? 'хід' : 'ходи'}
-        </div>
-      )}
 
       {/* 🏗️ Аукціон великих угод — показується всім гравцям */}
       <AuctionModal
