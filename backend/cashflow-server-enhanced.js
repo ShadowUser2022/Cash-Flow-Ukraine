@@ -826,6 +826,43 @@ gameNamespace.on("connection", (socket) => {
       // 8. Додатково емітимо загальний game-state
       emitGameState(gameId);
 
+      // 8.5 🏗️ Якщо витягнута ВЕЛИКА угода (type === 'big') — запускаємо аукціон для всіх гравців
+      const bigDealDrawn = cellEffect &&
+        cellEffect.type === 'draw_card' &&
+        (cellEffect.data?.cardType === 'business' || cellEffect.data?.cardType === 'opportunity') &&
+        cellEffect.data?.card?.type === 'big';
+
+      if (bigDealDrawn) {
+        const bigCard = cellEffect.data.card;
+        const allPlayerIds = game.players.map(p => p.id);
+
+        game.currentAuction = {
+          dealId: bigCard.id,
+          deal: {
+            id: bigCard.id,
+            title: bigCard.title,
+            description: bigCard.description || '',
+            category: bigCard.category || 'business',
+            cost: bigCard.cost || 0,
+            downPayment: bigCard.cost || 0,
+            cashFlow: bigCard.cashFlow || 0,
+          },
+          initiatorId: playerId,
+          bids: {},
+          pendingPlayers: [...allPlayerIds],
+          status: 'active',
+          startedAt: new Date().toISOString(),
+        };
+        gameStore.set(gameId, game);
+
+        console.log(`🏗️ [AUCTION] Started for big deal: "${bigCard.title}". Players: ${allPlayerIds.join(', ')}`);
+
+        gameNamespace.to(gameId).emit('large-deal-auction-started', {
+          auction: game.currentAuction,
+          gameState: game,
+        });
+      }
+
       // 9. Якщо клітинка НЕ потребує дії гравця (не картка) — автоматично передаємо хід
       // draw_card та choose_charity потребують підтвердження від фронту (через completeTurn)
       const requiresUserAction = cellEffect &&
@@ -1064,6 +1101,194 @@ gameNamespace.on("connection", (socket) => {
     });
 
     emitGameState(gameId);
+  });
+
+  // ─────────────────────────────────────────────
+  // 🏗️ AUCTION SYSTEM — Large Deal Auction
+  // ─────────────────────────────────────────────
+
+  // Допоміжна функція: розрахунок аукціону коли всі гравці зробили хід
+  function resolveAuction(gameId, game) {
+    const auction = game.currentAuction;
+    if (!auction || auction.status !== 'active') return;
+
+    auction.status = 'complete';
+
+    // Знаходимо переможця — найвища ставка
+    let winnerId = null;
+    let winnerBid = -1;
+
+    for (const [pid, bid] of Object.entries(auction.bids)) {
+      if (bid !== 'pass' && typeof bid === 'number' && bid > winnerBid) {
+        winnerBid = bid;
+        winnerId = pid;
+      }
+    }
+
+    // Якщо нікого немає — перевіряємо initiator окремо (може не голосував через solo)
+    if (winnerId === null && auction.pendingPlayers.length === 0) {
+      const allBids = Object.entries(auction.bids);
+      if (allBids.length === 0) {
+        // Solo: initiator не голосував — для простоти даємо йому купити за базовою ціною
+        winnerId = auction.initiatorId;
+        winnerBid = auction.deal.downPayment || 0;
+      }
+    }
+
+    const basePrice = auction.deal.downPayment || auction.deal.cost || 0;
+    const purchasePrice = winnerBid > 0 ? winnerBid : basePrice;
+
+    if (winnerId) {
+      const winner = game.players.find(p => p.id === winnerId);
+      if (winner && winner.finances.cash >= purchasePrice) {
+        // Списуємо gроші
+        winner.finances.cash -= purchasePrice;
+
+        // Додаємо актив
+        winner.finances.assets = winner.finances.assets || [];
+        winner.finances.assets.push({
+          id: auction.deal.id,
+          name: auction.deal.title,
+          type: auction.deal.category,
+          cost: purchasePrice,
+          cashFlow: auction.deal.cashFlow || 0,
+          purchasedAt: new Date().toISOString(),
+        });
+
+        // Перераховуємо пасивний дохід
+        winner.finances.passiveIncome = winner.finances.assets.reduce(
+          (sum, a) => sum + (a.cashFlow || 0), 0
+        );
+
+        // Позначаємо deal як куплений
+        const deal = game.deals.find(d => d.id === auction.deal.id);
+        if (deal) deal.isAvailable = false;
+
+        console.log(`🏆 [AUCTION] Winner: ${winner.name}, paid $${purchasePrice} for "${auction.deal.title}"`);
+
+        game.currentAuction = null;
+        game.updatedAt = new Date();
+        gameStore.set(gameId, game);
+
+        gameNamespace.to(gameId).emit('auction-completed', {
+          winnerId,
+          winnerName: winner.name,
+          winnerBid: purchasePrice,
+          dealTitle: auction.deal.title,
+          dealCashFlow: auction.deal.cashFlow || 0,
+          success: true,
+          gameState: game,
+        });
+      } else {
+        // Переможець не може дозволити собі угоду
+        const deal = game.deals.find(d => d.id === auction.deal.id);
+        if (deal) deal.isAvailable = false;
+        game.currentAuction = null;
+        gameStore.set(gameId, game);
+
+        console.log(`💸 [AUCTION] Winner ${winnerId} can't afford $${purchasePrice}`);
+        gameNamespace.to(gameId).emit('auction-completed', {
+          winnerId,
+          success: false,
+          reason: 'insufficient_funds',
+          gameState: game,
+        });
+      }
+    } else {
+      // Всі відмовились
+      const deal = game.deals.find(d => d.id === auction.deal.id);
+      if (deal) deal.isAvailable = false;
+      game.currentAuction = null;
+      gameStore.set(gameId, game);
+
+      console.log(`🚫 [AUCTION] All players passed on "${auction.deal.title}"`);
+      gameNamespace.to(gameId).emit('auction-completed', {
+        winnerId: null,
+        success: false,
+        reason: 'all_passed',
+        dealTitle: auction.deal.title,
+        gameState: game,
+      });
+    }
+
+    // Передаємо хід після аукціону (від initiator до наступного)
+    const initiatorIndex = game.players.findIndex(p => p.id === auction.initiatorId);
+    const nextIndex = (initiatorIndex + 1) % game.players.length;
+    game.currentPlayer = game.players[nextIndex].id;
+    game.turn = (game.turn || 0) + 1;
+    game.updatedAt = new Date();
+    gameStore.set(gameId, game);
+
+    gameNamespace.to(gameId).emit('turn-completed', {
+      playerId: auction.initiatorId,
+      currentPlayer: game.currentPlayer,
+      gameState: game,
+      message: 'Аукціон завершено, хід передано',
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  // Гравець ставить ставку в аукціоні
+  socket.on('place-bid', ({ gameId, playerId, amount }) => {
+    console.log(`💰 [AUCTION] Player ${playerId} bids $${amount} in game ${gameId}`);
+
+    const game = gameStore.get(gameId);
+    if (!game || !game.currentAuction || game.currentAuction.status !== 'active') {
+      socket.emit('error', { message: 'Аукціон не активний' });
+      return;
+    }
+
+    const auction = game.currentAuction;
+    const basePrice = auction.deal.downPayment || auction.deal.cost || 0;
+
+    // Ставка має бути >= базової ціни
+    const bidAmount = Math.max(Number(amount) || 0, basePrice);
+    auction.bids[playerId] = bidAmount;
+    auction.pendingPlayers = auction.pendingPlayers.filter(id => id !== playerId);
+
+    gameStore.set(gameId, game);
+    console.log(`🏗️ [AUCTION] Bids so far: ${JSON.stringify(auction.bids)}, pending: ${auction.pendingPlayers}`);
+
+    gameNamespace.to(gameId).emit('auction-bid-placed', {
+      playerId,
+      amount: bidAmount,
+      auction: game.currentAuction,
+      gameState: game,
+    });
+
+    // Якщо всі проголосували — розраховуємо результат
+    if (auction.pendingPlayers.length === 0) {
+      resolveAuction(gameId, game);
+    }
+  });
+
+  // Гравець пасує в аукціоні
+  socket.on('pass-bid', ({ gameId, playerId }) => {
+    console.log(`🚫 [AUCTION] Player ${playerId} passes in game ${gameId}`);
+
+    const game = gameStore.get(gameId);
+    if (!game || !game.currentAuction || game.currentAuction.status !== 'active') {
+      socket.emit('error', { message: 'Аукціон не активний' });
+      return;
+    }
+
+    const auction = game.currentAuction;
+    auction.bids[playerId] = 'pass';
+    auction.pendingPlayers = auction.pendingPlayers.filter(id => id !== playerId);
+
+    gameStore.set(gameId, game);
+
+    gameNamespace.to(gameId).emit('auction-bid-placed', {
+      playerId,
+      amount: null,
+      auction: game.currentAuction,
+      gameState: game,
+    });
+
+    // Якщо всі проголосували — розраховуємо результат
+    if (auction.pendingPlayers.length === 0) {
+      resolveAuction(gameId, game);
+    }
   });
 
   // ✅ Продаж активу гравця

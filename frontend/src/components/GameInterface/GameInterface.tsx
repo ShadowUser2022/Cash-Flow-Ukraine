@@ -14,6 +14,7 @@ import LeftSidebar from '../LeftSidebar/LeftSidebar';
 import RightSidebar from '../RightSidebar/RightSidebar';
 import MobileNavigation from './ui/Sidebars';
 import WinScreen from '../WinScreen/WinScreen';
+import AuctionModal from './ui/AuctionModal';
 
 
 interface GameInterfaceProps {
@@ -71,7 +72,11 @@ const GameInterface: React.FC<GameInterfaceProps> = ({ gameId, playerId }) => {
     handleDiceRollComplete,
     currentEventCard,
     showEventCard,
-    handleEventCardAction
+    handleEventCardAction,
+    currentAuction,
+    showAuctionModal,
+    handleBid,
+    handlePassBid,
   } = usePlayerTurnLogic({
     game,
     playerId,
@@ -160,6 +165,17 @@ const GameInterface: React.FC<GameInterfaceProps> = ({ gameId, playerId }) => {
         card={currentEventCard}
         show={showEventCard}
         onAction={handleEventCardAction}
+      />
+
+      {/* 🏗️ Аукціон великих угод — показується всім гравцям */}
+      <AuctionModal
+        show={showAuctionModal}
+        auction={currentAuction}
+        playerId={playerId}
+        playerCash={currentPlayer?.finances?.cash || 0}
+        players={game?.players?.map(p => ({ id: p.id, name: p.name })) || []}
+        onBid={handleBid}
+        onPass={handlePassBid}
       />
       
       {/* Модальні вікна */}

@@ -282,6 +282,18 @@ class SocketService {
     });
   }
 
+  // 🏗️ Auction — ставка на велику угоду
+  placeBid(gameId: string, playerId: string, amount: number) {
+    if (!this.gameSocket) throw new Error("Game socket not connected");
+    this.gameSocket.emit("place-bid" as any, { gameId, playerId, amount });
+  }
+
+  // 🏗️ Auction — пас (відмова від великої угоди)
+  passBid(gameId: string, playerId: string) {
+    if (!this.gameSocket) throw new Error("Game socket not connected");
+    this.gameSocket.emit("pass-bid" as any, { gameId, playerId });
+  }
+
   // Reject deal — відхилити угоду (картку opportunity/business)
   rejectDeal(gameId: string, playerId: string, dealId: string) {
     if (!this.gameSocket) {

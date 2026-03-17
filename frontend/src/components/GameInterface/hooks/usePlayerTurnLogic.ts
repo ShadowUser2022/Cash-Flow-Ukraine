@@ -32,6 +32,10 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setP
   const [currentEventCard, setCurrentEventCard] = useState<any>(null);
   const [showEventCard, setShowEventCard] = useState(false);
 
+  // 🏗️ Стан аукціону для великих угод
+  const [currentAuction, setCurrentAuction] = useState<any>(null);
+  const [showAuctionModal, setShowAuctionModal] = useState(false);
+
   // Ефект для прослуховування результатів ходу через сокети
   useEffect(() => {
     // ⚠️ FIX: Не блокуємо реєстрацію — сокет може ще не бути connected в момент монтування
@@ -90,8 +94,12 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setP
         if (data.cellEffect.type === 'draw_card') {
           const card = data.cellEffect.data?.card;
           const cardType = data.cellEffect.data?.cardType || card?.type || 'opportunity';
-          
-          if (card) {
+
+          // 🏗️ Велика угода — АукціонModal покаже всім гравцям через large-deal-auction-started
+          // Не показуємо звичайний EventCard для ініціатора (він побачить AuctionModal)
+          const isBigDeal = card?.type === 'big';
+
+          if (card && !isBigDeal) {
             setTimeout(() => {
               // Спеціальна обробка dream_check — перевірка перемоги
               if (cardType === 'dream_check') {
@@ -280,6 +288,66 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setP
 
     socket.on('market-boom' as any, handleMarketBoom);
     return () => socket.off('market-boom' as any, handleMarketBoom);
+  }, [playerId]);
+
+  // 🏗️ AUCTION LISTENERS — великі угоди
+  useEffect(() => {
+    const socket = socketService.getGameSocket();
+    if (!socket) return;
+
+    // Аукціон розпочато — показуємо AuctionModal для ВСІХ гравців
+    const handleAuctionStarted = (data: any) => {
+      console.log('🏗️ [AUCTION] Started:', data.auction?.deal?.title);
+      const { setGame, setCurrentPlayer } = useGameStore.getState();
+      if (data.gameState) {
+        setGame(data.gameState);
+        const updatedPlayer = data.gameState.players.find((p: any) => p.id === playerId);
+        if (updatedPlayer) setCurrentPlayer(updatedPlayer);
+      }
+      setCurrentAuction(data.auction);
+      setShowAuctionModal(true);
+    };
+
+    // Хтось зробив ставку — оновлюємо стан аукціону
+    const handleBidPlaced = (data: any) => {
+      console.log('💰 [AUCTION] Bid placed by', data.playerId, '→', data.amount ?? 'pass');
+      const { setGame } = useGameStore.getState();
+      if (data.gameState) setGame(data.gameState);
+      setCurrentAuction(data.auction);
+    };
+
+    // Аукціон завершено
+    const handleAuctionCompleted = (data: any) => {
+      console.log('🏆 [AUCTION] Completed. Winner:', data.winnerId);
+      const { setGame, setCurrentPlayer } = useGameStore.getState();
+      if (data.gameState) {
+        setGame(data.gameState);
+        const updatedPlayer = data.gameState.players.find((p: any) => p.id === playerId);
+        if (updatedPlayer) setCurrentPlayer(updatedPlayer);
+      }
+      setShowAuctionModal(false);
+      setCurrentAuction(null);
+
+      if (data.success && data.winnerId === playerId) {
+        toasts.success('🏗️ Велика угода!', `Ви виграли аукціон на "${data.dealTitle}"! +$${(data.dealCashFlow || 0).toLocaleString()}/міс`);
+      } else if (data.success && data.winnerId) {
+        toasts.info('🏗️ Аукціон завершено', `${data.winnerName || data.winnerId} виграв "${data.dealTitle}"`);
+      } else if (data.reason === 'insufficient_funds') {
+        toasts.error('💸 Аукціон', 'Переможець не має достатньо коштів. Угода скасована.');
+      } else {
+        toasts.info('🚫 Аукціон', 'Всі гравці відмовились від великої угоди.');
+      }
+    };
+
+    socket.on('large-deal-auction-started' as any, handleAuctionStarted);
+    socket.on('auction-bid-placed' as any, handleBidPlaced);
+    socket.on('auction-completed' as any, handleAuctionCompleted);
+
+    return () => {
+      socket.off('large-deal-auction-started' as any, handleAuctionStarted);
+      socket.off('auction-bid-placed' as any, handleBidPlaced);
+      socket.off('auction-completed' as any, handleAuctionCompleted);
+    };
   }, [playerId]);
 
   // ✅ FIX: Прослуховуємо TURN_COMPLETED — хід передано наступному гравцю
@@ -577,6 +645,18 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setP
     // В онлайн режимі реальний рух відбудеться коли прийде оновлений gameState через сокет
   };
 
+  // 🏗️ Гравець ставить ставку в аукціоні
+  const handleBid = (amount: number) => {
+    if (!game) return;
+    socketService.placeBid(game.id, playerId, amount);
+  };
+
+  // 🏗️ Гравець пасує в аукціоні
+  const handlePassBid = () => {
+    if (!game) return;
+    socketService.passBid(game.id, playerId);
+  };
+
   return {
     isMyTurn,
     canMoveToFastTrack,
@@ -584,6 +664,11 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setP
     handleDiceRollComplete,
     currentEventCard,
     showEventCard,
-    handleEventCardAction
+    handleEventCardAction,
+    // Auction
+    currentAuction,
+    showAuctionModal,
+    handleBid,
+    handlePassBid,
   };
 }
