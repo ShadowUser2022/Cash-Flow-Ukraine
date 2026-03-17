@@ -1,76 +1,68 @@
 import React from 'react';
+import useGameStore from '../../store/gameStore';
 import './TopInfoBar.css';
 
-interface Dream {
-  name: string;
-  amount: number;
-}
+// TopInfoBar — загальна ігрова шапка для ВСІХ гравців.
+// Показує: хід, чий черга, прогрес кожного до свободи.
+// НЕ дублює фінансовий звіт (він у лівому sidebar).
 
 interface TopInfoBarProps {
-  playerName: string;
-  avatarUrl?: string;
-  profession: string;
-  cash: number;
-  passiveIncome: number;
-  expenses: number;
-  assetsCount: number;
-  liabilitiesTotal: number;
-  dream: Dream;
+  playerId: string;
 }
 
-const TopInfoBar: React.FC<TopInfoBarProps> = ({
-  playerName,
-  avatarUrl,
-  profession,
-  cash,
-  passiveIncome,
-  expenses,
-  assetsCount,
-  liabilitiesTotal,
-  dream,
-}) => {
-  const [isCollapsed, setIsCollapsed] = React.useState(true);
-  const progress = Math.min(100, Math.round((passiveIncome / (expenses || 1)) * 100));
+const TopInfoBar: React.FC<TopInfoBarProps> = ({ playerId }) => {
+  const { game } = useGameStore();
+  if (!game) return null;
 
-  const toggleCollapse = () => {
-    setIsCollapsed(!isCollapsed);
-  };
+  const players = game.players || [];
+  const currentTurnId = game.currentPlayer;
+  const turn = game.turn ?? 0;
+  const fmt = (n: number) => `$${(n || 0).toLocaleString('en-US')}`;
 
   return (
-    <div 
-      className={`top-info-bar ${isCollapsed ? 'collapsed' : 'expanded'}`}
-      onClick={toggleCollapse}
-    >
-      <div className="player-info">
-        {avatarUrl && <img src={avatarUrl} alt="avatar" className="avatar" />}
-        <span className="player-name">{playerName}</span>
-        <span className="profession">({profession})</span>
-        <span className="collapse-icon">{isCollapsed ? '▼' : '▲'}</span>
+    <div className="top-info-bar">
+      {/* Статус гри */}
+      <div className="tib-status">
+        <span className="tib-title">CASHFLOW</span>
+        <span className="tib-turn">Хід #{turn}</span>
       </div>
 
-      {(!isCollapsed) && (
-        <>
-          <div className="metrics">
-            <span title="Готівка">💵 {cash.toLocaleString()}₴</span>
-            <span title="Пасивний дохід">📈 {passiveIncome.toLocaleString()}₴/міс</span>
-            <span title="Витрати">📉 {expenses.toLocaleString()}₴/міс</span>
-            <span title="Активи">🏠 {assetsCount}</span>
-            <span title="Пасиви">💳 {liabilitiesTotal.toLocaleString()}₴</span>
-            <span title="Мрія">🌟 {dream.name} ({dream.amount.toLocaleString()}₴)</span>
-          </div>
-          <div className="progress">
-            <progress value={passiveIncome} max={expenses || 1} />
-            <span className="progress-label">{progress}% до свободи</span>
-          </div>
-        </>
-      )}
+      {/* Карточки гравців */}
+      <div className="tib-players">
+        {players.map(player => {
+          const isActive = player.id === currentTurnId;
+          const isMe = player.id === playerId;
+          const passive = player.finances?.passiveIncome || 0;
+          const expenses = player.finances?.expenses || 0;
+          const pct = expenses > 0 ? Math.min(100, Math.round((passive / expenses) * 100)) : 0;
+          const cf = passive - expenses;
+          const ft = player.isOnFastTrack;
 
-      {isCollapsed && (
-         <div className="mini-stats">
-            <span>💵 {cash.toLocaleString()}₴</span>
-            <span>📈 {progress}%</span>
-         </div>
-      )}
+          return (
+            <div key={player.id} className={`tib-player${isActive ? ' active' : ''}${isMe ? ' me' : ''}${ft ? ' ft' : ''}`}>
+              {isActive && <span className="tib-turn-icon">🎲</span>}
+              <div className="tib-pname">
+                {ft ? '🚀' : '🐌'} {player.name}
+                {isMe && <span className="tib-badge">Ви</span>}
+              </div>
+              <div className="tib-nums">
+                <span className="tib-cash">{fmt(player.finances?.cash || 0)}</span>
+                <span className={`tib-cf ${cf >= 0 ? 'pos' : 'neg'}`}>
+                  {cf >= 0 ? '+' : ''}{fmt(cf)}/міс
+                </span>
+              </div>
+              {!ft ? (
+                <div className="tib-bar">
+                  <div className="tib-fill" style={{ width: `${pct}%` }} />
+                  <span className="tib-pct">{pct}%</span>
+                </div>
+              ) : (
+                <div className="tib-ft">✅ Свобода!</div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };
