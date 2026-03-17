@@ -44,9 +44,6 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
       {isMobile && open && (
         <button className="sidebar-close-btn" onClick={onToggle}>✕</button>
       )}
-      <div className="left-sidebar-header">
-        <span className="left-sidebar-title">📊 Мої фінанси</span>
-      </div>
       <GameInteractionPanel
       currentPlayer={currentPlayer}
       gameId={gameId}

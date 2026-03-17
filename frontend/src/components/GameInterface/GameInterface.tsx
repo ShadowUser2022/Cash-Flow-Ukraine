@@ -12,7 +12,7 @@ import EventCard from './ui/EventCard';
 import ToastNotifications from './ui/Overlays';
 import LeftSidebar from '../LeftSidebar/LeftSidebar';
 import RightSidebar from '../RightSidebar/RightSidebar';
-import MobileNavigation from './ui/Sidebars';
+// MobileNavigation (Sidebars.tsx) removed — LeftSidebar/RightSidebar handle mobile
 import WinScreen from '../WinScreen/WinScreen';
 import AuctionModal from './ui/AuctionModal';
 
@@ -190,15 +190,7 @@ const GameInterface: React.FC<GameInterfaceProps> = ({ gameId, playerId }) => {
         handleLeftSidebarToggle={handleLeftSidebarToggle}
         handleRightSidebarToggle={handleRightSidebarToggle}
       />
-      {/* Мобільна навігація */}
-      {isMobile && (
-        <MobileNavigation
-          leftSidebarOpen={leftSidebarOpen}
-          rightSidebarOpen={rightSidebarOpen}
-          handleLeftSidebarToggle={handleLeftSidebarToggle}
-          handleRightSidebarToggle={handleRightSidebarToggle}
-        />
-      )}
+      {/* MobileNavigation removed — LeftSidebar/RightSidebar handle all platforms */}
 
       {/* Екран перемоги */}
       {isWon && currentPlayer && (

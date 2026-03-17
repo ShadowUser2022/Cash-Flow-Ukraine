@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { usePlayerFinances } from '../../hooks/usePlayerFinances';
 import useGameStore from '../../store/gameStore';
-import { socketService } from '../../services/socketService';
 import './FinancialStatement.css';
 
 interface FinancialStatementProps {
@@ -16,24 +15,9 @@ const FinancialStatement: React.FC<FinancialStatementProps> = ({
   className = ''
 }) => {
   const finances = usePlayerFinances();
-  const { currentPlayer, game } = useGameStore();
-
-  // 💸 Sell confirmation state
-  const [sellConfirm, setSellConfirm] = useState<{ assetId: string; assetName: string; price: number; multiplier: number } | null>(null);
+  const { currentPlayer } = useGameStore();
 
   if (!finances || !currentPlayer) return null;
-
-  const handleSellClick = (asset: any) => {
-    const multiplier = asset.currentMultiplier ?? 1.0;
-    const price = Math.floor((asset.cost || 0) * multiplier);
-    setSellConfirm({ assetId: asset.id, assetName: asset.name, price, multiplier });
-  };
-
-  const confirmSell = () => {
-    if (!sellConfirm || !game) return;
-    socketService.sellAsset(game.id, currentPlayer.id, sellConfirm.assetId, sellConfirm.price);
-    setSellConfirm(null);
-  };
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('uk-UA', {
@@ -82,36 +66,12 @@ const FinancialStatement: React.FC<FinancialStatementProps> = ({
         {currentPlayer.finances.assets && currentPlayer.finances.assets.length > 0 && (
           <div className="assets-list">
             <h6 className="subsection-title">🏠 АКТИВИ (пасивний дохід):</h6>
-            {currentPlayer.finances.assets.map((asset: any, index) => {
-              const multiplier = asset.currentMultiplier ?? 1.0;
-              const sellPrice = Math.floor((asset.cost || 0) * multiplier);
-              return (
-                <div key={asset.id || index} className="finance-row asset-row" style={{ alignItems: 'center' }}>
-                  <span className="label" style={{ flex: 1 }}>
-                    {asset.name}
-                    {multiplier !== 1.0 && (
-                      <span style={{ marginLeft: 4, fontSize: 11, color: multiplier > 1 ? '#4CAF50' : '#f44336' }}>
-                        {multiplier > 1 ? `🚀×${multiplier}` : `📉×${multiplier}`}
-                      </span>
-                    )}
-                    :
-                  </span>
-                  <span className="value positive" style={{ marginRight: 8 }}>{formatCurrency(asset.cashFlow)}</span>
-                  <button
-                    onClick={() => handleSellClick(asset)}
-                    style={{
-                      fontSize: 11, padding: '2px 7px', borderRadius: 6,
-                      background: 'rgba(244,67,54,0.15)', color: '#f44336',
-                      border: '1px solid rgba(244,67,54,0.4)', cursor: 'pointer',
-                      whiteSpace: 'nowrap', flexShrink: 0
-                    }}
-                    title={`Продати за $${sellPrice.toLocaleString()}`}
-                  >
-                    💸 Продати
-                  </button>
-                </div>
-              );
-            })}
+            {currentPlayer.finances.assets.map((asset, index) => (
+              <div key={asset.id || index} className="finance-row asset-row">
+                <span className="label">{asset.name}:</span>
+                <span className="value positive">{formatCurrency(asset.cashFlow)}</span>
+              </div>
+            ))}
           </div>
         )}
         
@@ -212,41 +172,6 @@ const FinancialStatement: React.FC<FinancialStatementProps> = ({
         <div className="statement-section advice-section">
           <h5 className="section-title">💡 ПОРАДИ</h5>
           <p className="advice-text">{finances.advice}</p>
-        </div>
-      )}
-      {/* 💸 Sell Confirmation */}
-      {sellConfirm && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200
-        }}>
-          <div style={{
-            background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.15)',
-            borderRadius: 12, padding: 24, maxWidth: 320, width: '90%',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.5)'
-          }}>
-            <h4 style={{ color: '#FFD700', margin: '0 0 12px' }}>💸 Продати актив</h4>
-            <p style={{ color: '#ddd', margin: '0 0 8px' }}><strong>{sellConfirm.assetName}</strong></p>
-            <p style={{ color: '#aaa', fontSize: 13, margin: '0 0 4px' }}>
-              Ціна продажу: <strong style={{ color: '#4CAF50' }}>${sellConfirm.price.toLocaleString()}</strong>
-            </p>
-            {sellConfirm.multiplier !== 1.0 && (
-              <p style={{ color: sellConfirm.multiplier > 1 ? '#4CAF50' : '#f44336', fontSize: 12, margin: '0 0 12px' }}>
-                {sellConfirm.multiplier > 1 ? `🚀 Ринковий бум ×${sellConfirm.multiplier}!` : `📉 Ринковий обвал ×${sellConfirm.multiplier}`}
-              </p>
-            )}
-            <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-              <button onClick={() => setSellConfirm(null)} style={{
-                flex: 1, padding: '9px 0', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)',
-                background: 'transparent', color: '#aaa', cursor: 'pointer', fontSize: 14
-              }}>Скасувати</button>
-              <button onClick={confirmSell} style={{
-                flex: 1, padding: '9px 0', borderRadius: 8, border: 'none',
-                background: 'linear-gradient(135deg,#f44336,#c62828)', color: '#fff',
-                cursor: 'pointer', fontSize: 14, fontWeight: 700
-              }}>✅ Продати</button>
-            </div>
-          </div>
         </div>
       )}
     </div>
