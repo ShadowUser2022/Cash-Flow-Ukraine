@@ -282,6 +282,14 @@ class SocketService {
     });
   }
 
+  // Reject deal — відхилити угоду (картку opportunity/business)
+  rejectDeal(gameId: string, playerId: string, dealId: string) {
+    if (!this.gameSocket) {
+      throw new Error("Game socket not connected");
+    }
+    this.gameSocket.emit("reject-deal" as any, { gameId, playerId, dealId });
+  }
+
   // Sell asset (Phase 4)
   sellAsset(gameId: string, playerId: string, assetId: string, sellPrice?: number) {
     if (!this.gameSocket) {
