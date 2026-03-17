@@ -276,30 +276,55 @@ export class GameMechanicsService {
 		}
 
 		try {
-			// Створюємо транзакцію в БД
+			// ✅ processAssetPurchase — no-op (in-memory mode), не кидає помилок
 			await transactionService.processAssetPurchase(player.id, game.id, requiredCash, deal.id, `Покупка: ${deal.title}`, player);
 
 			// Оновлюємо фінанси гравця
 			player.finances.cash -= requiredCash;
-			
+
 			// Додаємо актив до пасивного доходу
 			if (deal.cashFlow && deal.cashFlow > 0) {
 				player.finances.passiveIncome += deal.cashFlow;
 			}
 
-			// Додаємо актив
+			// Додаємо актив до балансу
+			if (!player.finances.assets) player.finances.assets = [];
 			player.finances.assets.push({
 				id: deal.id,
 				name: deal.title,
-				type: deal.category as any, // Cast to any or appropriate AssetType
+				type: deal.category as any,
 				cost: deal.cost,
 				cashFlow: deal.cashFlow || 0,
-				acquiredAt: new Date()
-			} as any); // Asset interface might slightly differ from local storage logic
+				downPayment: requiredCash,
+				mortgage: deal.mortgage || 0,
+				acquiredAt: new Date(),
+				currentMultiplier: 1.0,
+				purchasePrice: deal.cost,
+			} as any);
+
+			// Додаємо liability якщо є іпотека
+			if (deal.mortgage && deal.mortgage > 0) {
+				if (!player.finances.liabilities) player.finances.liabilities = [];
+				const monthlyPayment = Math.round(deal.mortgage * 0.007);
+				player.finances.liabilities.push({
+					id: `liab_${deal.id}`,
+					type: 'mortgage',
+					name: `Іпотека: ${deal.title}`,
+					amount: deal.mortgage,
+					monthlyPayment,
+				});
+			}
+
+			// 🆕 Перераховуємо passiveIncome з усіх активів (sync)
+			this.recalculatePlayerFinances(player);
 
 			// Помічаємо угоду як продану
 			deal.isAvailable = false;
 			deal.playerId = playerId;
+
+			console.log(
+				`✅ [BUY DEAL] ${player.name} bought "${deal.title}" | -$${requiredCash} | passiveIncome=$${player.finances.passiveIncome} | cash=$${player.finances.cash}`
+			);
 
 			const transaction: FinancialTransaction = {
 				id: `txn_${Date.now()}`,
@@ -662,6 +687,33 @@ export class GameMechanicsService {
 
 			// 4. Виконуємо дію клітинки (якщо є)
 			if (moveResult.cellEffect) {
+				const cardData = moveResult.cellEffect.data as any;
+
+				// 🆕 Зберігаємо opportunity/business картку в game.deals щоб buyDeal міг її знайти
+				if (
+					cardData?.card &&
+					(cardData.cardType === 'opportunity' || cardData.cardType === 'business')
+				) {
+					// Видаляємо попередні незакриті deals цього гравця
+					game.deals = game.deals.filter((d: Deal) => !d.isAvailable || d.playerId !== playerId);
+
+					const newDeal: Deal = {
+						id: cardData.card.id,
+						type: (cardData.card.type === 'big' ? 'big' : 'small') as Deal['type'],
+						category: cardData.card.category || 'real_estate',
+						title: cardData.card.title,
+						description: cardData.card.description || '',
+						cost: cardData.card.cost || 0,
+						downPayment: cardData.card.cost || cardData.card.amount || 0,
+						cashFlow: cardData.card.cashFlow || 0,
+						requirements: cardData.card.requirements || [],
+						isAvailable: true,
+						playerId, // тільки цей гравець може купити
+					};
+					game.deals.push(newDeal);
+					console.log(`📋 [DEAL STORED] ${newDeal.title} (id: ${newDeal.id}) for player ${playerId}`);
+				}
+
 				turn.actions.push({
 					id: `action_${Date.now()}_cell`,
 					type: 'draw_card',

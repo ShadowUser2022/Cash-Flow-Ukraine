@@ -1,9 +1,8 @@
-// Transaction Service for Cash Flow Ukraine
-// Handles all financial transactions in the game
+// Transaction Service — Pure In-Memory Version
+// Всі операції з даними гравця відбуваються напряму на об'єктах в пам'яті.
+// Без MongoDB: стара версія крашила через відсутність БД, що блокувало buy-deal.
 
-import Transaction from '../models/Transaction';
-import Player from '../models/Player';
-import { ITransaction } from '../models/Transaction';
+import { Player, Asset, Liability } from '../../../shared/types/game';
 
 export class TransactionService {
   private static instance: TransactionService;
@@ -17,405 +16,262 @@ export class TransactionService {
     return TransactionService.instance;
   }
 
-  // Process salary payment
-  public async processSalary(playerId: string, gameId: string, amount: number, playerObj?: any): Promise<ITransaction> {
-    try {
-      // Update player's cash
-      const player = playerObj || await (Player as any).findByPlayerId(playerId);
-      if (!player) {
-        throw new Error('Player not found');
-      }
+  // ─────────────────────────────────────────────────────────────────────────
+  // CORE IN-MEMORY OPERATIONS
+  // ─────────────────────────────────────────────────────────────────────────
 
-      const previousBalance = player.finances.cash;
-      player.finances.cash += amount;
-      
-      if (!playerObj) {
-        await player.save();
-      }
-
-      // Create transaction record
-      const transaction = await (Transaction as any).createTransaction({
-        playerId,
-        gameId,
-        type: 'salary',
-        amount,
-        description: 'Salary payment',
-        category: 'income',
-        metadata: {
-          previousBalance,
-          newBalance: player.finances.cash
-        }
-      });
-
-      await transaction.process();
-      return transaction;
-    } catch (error) {
-      console.error('Error processing salary:', error);
-      throw error;
+  /**
+   * Купівля активу:
+   * списує downPayment, додає актив до finances, оновлює passiveIncome
+   */
+  public buyAsset(
+    player: Player,
+    assetData: {
+      id: string;
+      name: string;
+      type: Asset['type'];
+      cost: number;
+      downPayment: number;
+      cashFlow: number;
+      mortgage?: number;
+      description?: string;
     }
+  ): { success: boolean; message: string } {
+    const { downPayment, cashFlow, mortgage } = assetData;
+
+    if (player.finances.cash < downPayment) {
+      return {
+        success: false,
+        message: `Недостатньо готівки. Потрібно: $${downPayment.toLocaleString('uk-UA')}`,
+      };
+    }
+
+    // Списуємо початковий внесок
+    player.finances.cash -= downPayment;
+
+    // Додаємо актив
+    const asset: Asset = {
+      id: assetData.id,
+      name: assetData.name,
+      type: assetData.type,
+      cost: assetData.cost,
+      cashFlow: cashFlow || 0,
+      downPayment,
+      mortgage: mortgage || 0,
+      acquiredAt: new Date(),
+      currentMultiplier: 1.0,
+      purchasePrice: assetData.cost,
+    } as Asset;
+    player.finances.assets.push(asset);
+
+    // Оновлюємо пасивний дохід
+    if (cashFlow > 0) {
+      player.finances.passiveIncome = (player.finances.passiveIncome || 0) + cashFlow;
+    }
+
+    // Додаємо liability якщо є іпотека
+    if (mortgage && mortgage > 0) {
+      const monthlyPayment = Math.round(mortgage * 0.007); // ~0.7% на місяць
+      const liability: Liability = {
+        id: `liab_${assetData.id}`,
+        type: 'mortgage',
+        name: `Іпотека: ${assetData.name}`,
+        amount: mortgage,
+        monthlyPayment,
+      };
+      if (!player.finances.liabilities) player.finances.liabilities = [];
+      player.finances.liabilities.push(liability);
+    }
+
+    this.recalculateFinances(player);
+    return { success: true, message: `Куплено: ${assetData.name}` };
   }
 
-  // Process expense payment
-  public async processExpense(playerId: string, gameId: string, amount: number, description: string, cellPosition?: number, playerObj?: any): Promise<ITransaction> {
-    try {
-      // Update player's cash
-      const player = playerObj || await (Player as any).findByPlayerId(playerId);
-      if (!player) {
-        throw new Error('Player not found');
-      }
+  /**
+   * Продаж активу: додає кошти, видаляє актив, оновлює passiveIncome
+   */
+  public sellAsset(
+    player: Player,
+    assetId: string,
+    sellPrice?: number
+  ): { success: boolean; message: string; amountReceived?: number; profit?: number } {
+    const assetIndex = player.finances.assets.findIndex(a => a.id === assetId);
+    if (assetIndex === -1) return { success: false, message: 'Актив не знайдено' };
 
-      if (player.finances.cash < amount) {
-        // We still allow it to continue if playerObj is provided, as callers might handle loans
-        if (!playerObj) throw new Error('Insufficient funds');
-      }
+    const asset = player.finances.assets[assetIndex];
+    const multiplier = (asset as any).currentMultiplier ?? 1.0;
+    const salePrice = sellPrice ?? Math.floor(asset.cost * multiplier);
+    const mortgageBalance = asset.mortgage ?? 0;
+    const netProceeds = salePrice - mortgageBalance;
 
-      const previousBalance = player.finances.cash;
-      player.finances.cash -= amount;
-      
-      if (!playerObj) {
-        await player.save();
-      }
-
-      // Create transaction record
-      const transaction = await (Transaction as any).createTransaction({
-        playerId,
-        gameId,
-        type: 'expense',
-        amount: -amount,
-        description,
-        category: 'expenses',
-        metadata: {
-          cellPosition,
-          previousBalance,
-          newBalance: player.finances.cash
-        }
-      });
-
-      await transaction.process();
-      return transaction;
-    } catch (error) {
-      console.error('Error processing expense:', error);
-      throw error;
+    if (netProceeds < 0) {
+      return {
+        success: false,
+        message: `Ціна продажу $${salePrice.toLocaleString()} менша за залишок іпотеки $${mortgageBalance.toLocaleString()}`,
+      };
     }
+
+    const purchasePrice = (asset as any).purchasePrice ?? asset.cost;
+    const profit = netProceeds - purchasePrice;
+
+    // 1. Додаємо чисті кошти
+    player.finances.cash += netProceeds;
+
+    // 2. Знімаємо cashFlow з пасивного доходу
+    if (asset.cashFlow > 0) {
+      player.finances.passiveIncome = Math.max(0, player.finances.passiveIncome - asset.cashFlow);
+    }
+
+    // 3. Видаляємо пов'язану liability (іпотека)
+    if (mortgageBalance > 0 && player.finances.liabilities) {
+      const liabIdx = player.finances.liabilities.findIndex(
+        l => l.id === assetId || l.id === `liab_${assetId}`
+      );
+      if (liabIdx !== -1) {
+        const liab = player.finances.liabilities[liabIdx];
+        player.finances.expenses = Math.max(0, player.finances.expenses - liab.monthlyPayment);
+        player.finances.liabilities.splice(liabIdx, 1);
+      }
+    }
+
+    // 4. Видаляємо актив
+    player.finances.assets.splice(assetIndex, 1);
+
+    this.recalculateFinances(player);
+
+    console.log(
+      `💸 [TX] Sell: ${asset.name} | sale=$${salePrice} | net=$${netProceeds} | profit=$${profit} | cash→$${player.finances.cash}`
+    );
+
+    return { success: true, message: `Продано: ${asset.name}`, amountReceived: netProceeds, profit };
   }
 
-  // Process asset purchase
-  public async processAssetPurchase(playerId: string, gameId: string, amount: number, assetId: string, description: string, playerObj?: any): Promise<ITransaction> {
-    try {
-      // Update player's cash
-      const player = playerObj || await (Player as any).findByPlayerId(playerId);
-      if (!player) {
-        throw new Error('Player not found');
-      }
-
-      if (player.finances.cash < amount) {
-        if (!playerObj) throw new Error('Insufficient funds for asset purchase');
-      }
-
-      const previousBalance = player.finances.cash;
-      player.finances.cash -= amount;
-      
-      if (!playerObj) {
-        await player.save();
-      }
-
-      // Create transaction record
-      const transaction = await Transaction.createTransaction({
-        playerId,
-        gameId,
-        type: 'asset_purchase',
-        amount: -amount,
-        description,
-        category: 'assets',
-        metadata: {
-          assetId,
-          previousBalance,
-          newBalance: player.finances.cash
-        }
-      });
-
-      await transaction.process();
-      return transaction;
-    } catch (error) {
-      console.error('Error processing asset purchase:', error);
-      throw error;
-    }
+  /**
+   * Списати витрату (doodad, lawsuit, тощо)
+   */
+  public payExpense(
+    player: Player,
+    amount: number,
+    description: string
+  ): { success: boolean; message: string } {
+    player.finances.cash = Math.max(0, player.finances.cash - amount);
+    console.log(`📉 [TX] Expense: ${description} | -$${amount} | cash→$${player.finances.cash}`);
+    return { success: true, message: `Сплачено: ${description}` };
   }
 
-  // Process deal transaction
-  public async processDeal(playerId: string, gameId: string, amount: number, dealId: string, description: string, playerObj?: any): Promise<ITransaction> {
-    try {
-      // Update player's cash
-      const player = playerObj || await (Player as any).findByPlayerId(playerId);
-      if (!player) {
-        throw new Error('Player not found');
-      }
-
-      const isExpense = amount < 0;
-      if (isExpense && player.finances.cash < Math.abs(amount)) {
-        if (!playerObj) throw new Error('Insufficient funds for deal');
-      }
-
-      const previousBalance = player.finances.cash;
-      player.finances.cash += amount;
-      
-      if (!playerObj) {
-        await player.save();
-      }
-
-      // Create transaction record
-      const transaction = await Transaction.createTransaction({
-        playerId,
-        gameId,
-        type: 'deal',
-        amount,
-        description,
-        category: isExpense ? 'expenses' : 'income',
-        metadata: {
-          dealId,
-          previousBalance,
-          newBalance: player.finances.cash
-        }
-      });
-
-      await transaction.process();
-      return transaction;
-    } catch (error) {
-      console.error('Error processing deal:', error);
-      throw error;
-    }
+  /**
+   * Додати дохід (зарплата, пасивний дохід)
+   */
+  public receiveIncome(player: Player, amount: number, description: string): void {
+    player.finances.cash += amount;
+    console.log(`📈 [TX] Income: ${description} | +$${amount} | cash→$${player.finances.cash}`);
   }
 
-  // Process charity payment
-  public async processCharity(playerId: string, gameId: string, amount: number, playerObj?: any): Promise<ITransaction> {
-    try {
-      // Update player's cash
-      const player = playerObj || await Player.findByPlayerId(playerId);
-      if (!player) {
-        throw new Error('Player not found');
-      }
-
-      if (player.finances.cash < amount) {
-        if (!playerObj) throw new Error('Insufficient funds for charity');
-      }
-
-      const previousBalance = player.finances.cash;
-      player.finances.cash -= amount;
-      
-      if (!playerObj) {
-        await player.save();
-      }
-
-      // Create transaction record
-      const transaction = await Transaction.createTransaction({
-        playerId,
-        gameId,
-        type: 'charity',
-        amount: -amount,
-        description: 'Charity donation',
-        category: 'charity',
-        metadata: {
-          previousBalance,
-          newBalance: player.finances.cash
-        }
-      });
-
-      await transaction.process();
-      return transaction;
-    } catch (error) {
-      console.error('Error processing charity:', error);
-      throw error;
+  /**
+   * Перерахувати passiveIncome з усіх активів гравця
+   */
+  public recalculateFinances(player: Player): void {
+    let passiveIncome = 0;
+    for (const asset of player.finances.assets) {
+      if (asset.cashFlow > 0) passiveIncome += asset.cashFlow;
     }
+    player.finances.passiveIncome = passiveIncome;
+    // Синхронізуємо top-level поле
+    player.passiveIncome = passiveIncome;
   }
 
-  // Process tax payment
-  public async processTax(playerId: string, gameId: string, amount: number, description: string = 'Tax payment', playerObj?: any): Promise<ITransaction> {
-    try {
-      // Update player's cash
-      const player = playerObj || await Player.findByPlayerId(playerId);
-      if (!player) {
-        throw new Error('Player not found');
-      }
-
-      if (player.finances.cash < amount) {
-        if (!playerObj) throw new Error('Insufficient funds for tax payment');
-      }
-
-      const previousBalance = player.finances.cash;
-      player.finances.cash -= amount;
-      
-      if (!playerObj) {
-        await player.save();
-      }
-
-      // Create transaction record
-      const transaction = await Transaction.createTransaction({
-        playerId,
-        gameId,
-        type: 'tax',
-        amount: -amount,
-        description,
-        category: 'tax',
-        metadata: {
-          previousBalance,
-          newBalance: player.finances.cash
-        }
-      });
-
-      await transaction.process();
-      return transaction;
-    } catch (error) {
-      console.error('Error processing tax:', error);
-      throw error;
-    }
+  /**
+   * Перевірка умови перемоги: passiveIncome >= monthlyExpenses
+   */
+  public checkWinCondition(player: Player): boolean {
+    return player.finances.passiveIncome >= player.finances.expenses;
   }
 
-  // Get player transaction history
-  public async getPlayerTransactions(playerId: string, limit: number = 50): Promise<ITransaction[]> {
-    try {
-      return await (Transaction as any).findByPlayerId(playerId)
-        .limit(limit)
-        .populate('fromPlayer', 'name')
-        .populate('toPlayer', 'name');
-    } catch (error) {
-      console.error('Error getting player transactions:', error);
-      throw error;
-    }
+  // ─────────────────────────────────────────────────────────────────────────
+  // LEGACY COMPATIBILITY — методи, що викликаються з GameMechanicsService
+  // Більше не звертаються до MongoDB — просто логують
+  // ─────────────────────────────────────────────────────────────────────────
+
+  public async processAssetPurchase(
+    playerId: string,
+    gameId: string,
+    amount: number,
+    assetId: string,
+    description: string,
+    _playerObj?: any
+  ): Promise<any> {
+    // ✅ In-memory mode: cash managed directly by GameMechanicsService.buyDeal()
+    // НЕ списуємо тут — уникаємо подвійного списання
+    console.log(`📝 [TX] processAssetPurchase (no-op): ${description}, $${amount}`);
+    return { id: `txn_${Date.now()}`, processed: true, type: 'asset_purchase', amount };
   }
 
-  // Get game transaction history
-  public async getGameTransactions(gameId: string, limit: number = 100): Promise<ITransaction[]> {
-    try {
-      return await (Transaction as any).findByGameId(gameId)
-        .limit(limit)
-        .populate('playerId', 'name')
-        .sort({ timestamp: -1 });
-    } catch (error) {
-      console.error('Error getting game transactions:', error);
-      throw error;
-    }
+  public async processSalary(
+    playerId: string,
+    gameId: string,
+    amount: number,
+    _playerObj?: any
+  ): Promise<any> {
+    console.log(`📝 [TX] processSalary (no-op): +$${amount}`);
+    return { id: `txn_${Date.now()}`, processed: true, type: 'salary', amount };
   }
 
-  // Get player balance
+  public async processExpense(
+    playerId: string,
+    gameId: string,
+    amount: number,
+    description: string,
+    _cellPosition?: number,
+    _playerObj?: any
+  ): Promise<any> {
+    console.log(`📝 [TX] processExpense (no-op): ${description}, -$${amount}`);
+    return { id: `txn_${Date.now()}`, processed: true, type: 'expense', amount: -amount };
+  }
+
+  public async processDeal(
+    playerId: string,
+    gameId: string,
+    amount: number,
+    dealId: string,
+    description: string,
+    _playerObj?: any
+  ): Promise<any> {
+    console.log(`📝 [TX] processDeal (no-op): ${description}, $${amount}`);
+    return { id: `txn_${Date.now()}`, processed: true, type: 'deal', amount };
+  }
+
+  public async processCharity(
+    playerId: string,
+    gameId: string,
+    amount: number,
+    _playerObj?: any
+  ): Promise<any> {
+    console.log(`📝 [TX] processCharity (no-op): -$${amount}`);
+    return { id: `txn_${Date.now()}`, processed: true, type: 'charity', amount: -amount };
+  }
+
+  public async processTax(
+    playerId: string,
+    gameId: string,
+    amount: number,
+    description: string = 'Tax payment',
+    _playerObj?: any
+  ): Promise<any> {
+    console.log(`📝 [TX] processTax (no-op): ${description}, -$${amount}`);
+    return { id: `txn_${Date.now()}`, processed: true, type: 'tax', amount: -amount };
+  }
+
+  public async getPlayerTransactions(_playerId: string, _limit: number = 50): Promise<any[]> {
+    return [];
+  }
+
+  public async getGameTransactions(_gameId: string, _limit: number = 100): Promise<any[]> {
+    return [];
+  }
+
   public async getPlayerBalance(playerId: string): Promise<number> {
-    try {
-      const player = await (Player as any).findByPlayerId(playerId);
-      if (!player) {
-        throw new Error('Player not found');
-      }
-      return player.finances.cash;
-    } catch (error) {
-      console.error('Error getting player balance:', error);
-      throw error;
-    }
-  }
-
-  // Process player movement and apply cell effects
-  public async processPlayerMovement(playerId: string, gameId: string, newPosition: number, cellType: string): Promise<ITransaction[]> {
-    try {
-      const transactions: ITransaction[] = [];
-
-      switch (cellType) {
-        case 'expense':
-          const expenseAmount = Math.floor(Math.random() * 500) + 100; // Random expense 100-600
-          const expenseTx = await (Transaction as any).createTransaction({
-            playerId,
-            gameId,
-            type: 'expense',
-            amount: -expenseAmount,
-            description: 'Board expense',
-            category: 'expenses',
-            metadata: {
-              cellPosition: newPosition
-            }
-          });
-          await expenseTx.process();
-          transactions.push(expenseTx);
-          break;
-
-        case 'charity':
-          const charityAmount = Math.floor(Math.random() * 200) + 50; // Random charity 50-250
-          const charityTx = await (Transaction as any).createTransaction({
-            playerId,
-            gameId,
-            type: 'charity',
-            amount: -charityAmount,
-            description: 'Charity donation',
-            category: 'charity',
-            metadata: {
-              cellPosition: newPosition
-            }
-          });
-          await charityTx.process();
-          transactions.push(charityTx);
-          break;
-
-        case 'salary':
-        case 'payday':
-          const player = await (Player as any).findByPlayerId(playerId);
-          if (player) {
-            const salaryAmount = player.profession.salary;
-            const salaryTx = await (Transaction as any).createTransaction({
-              playerId,
-              gameId,
-              type: 'salary',
-              amount: salaryAmount,
-              description: 'Salary payment',
-              category: 'income',
-              metadata: {
-                previousBalance: player.finances.cash,
-                newBalance: player.finances.cash + salaryAmount
-              }
-            });
-            await salaryTx.process();
-            transactions.push(salaryTx);
-          }
-          break;
-
-        case 'market':
-          // Market events can be positive or negative
-          const marketAmount = (Math.random() - 0.5) * 400; // -200 to +200
-          if (marketAmount > 0) {
-            const incomeTx = await (Transaction as any).createTransaction({
-              playerId,
-              gameId,
-              type: 'income',
-              amount: marketAmount,
-              description: 'Market gain',
-              category: 'income',
-              metadata: {
-                cellPosition: newPosition
-              }
-            });
-            await incomeTx.process();
-            transactions.push(incomeTx);
-          } else {
-            const lossTx = await (Transaction as any).createTransaction({
-              playerId,
-              gameId,
-              type: 'expense',
-              amount: Math.abs(marketAmount),
-              description: 'Market loss',
-              category: 'expenses',
-              metadata: {
-                cellPosition: newPosition
-              }
-            });
-            await lossTx.process();
-            transactions.push(lossTx);
-          }
-          break;
-
-        default:
-          // No financial effect for other cell types
-          break;
-      }
-
-      return transactions;
-    } catch (error) {
-      console.error('Error processing player movement:', error);
-      throw error;
-    }
+    console.warn(`[TX] getPlayerBalance called for ${playerId} — use player.finances.cash directly`);
+    return 0;
   }
 }
 

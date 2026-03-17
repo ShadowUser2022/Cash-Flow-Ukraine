@@ -826,6 +826,28 @@ gameNamespace.on("connection", (socket) => {
       // 8. Додатково емітимо загальний game-state
       emitGameState(gameId);
 
+      // 9. Якщо клітинка НЕ потребує дії гравця (не картка) — автоматично передаємо хід
+      // draw_card та choose_charity потребують підтвердження від фронту (через completeTurn)
+      const requiresUserAction = cellEffect &&
+        (cellEffect.type === 'draw_card' || cellEffect.type === 'choose_charity');
+
+      if (!requiresUserAction) {
+        const players = game.players;
+        const currentIndex = players.findIndex(p => p.id === playerId);
+        const nextIndex = (currentIndex + 1) % players.length;
+        game.currentPlayer = players[nextIndex].id;
+        game.updatedAt = new Date();
+        gameStore.set(gameId, game);
+        console.log(`🔄 [AUTO-ADVANCE] Turn passed: ${playerId} → ${game.currentPlayer} (cell type: ${cellEffect?.type || 'none'})`);
+        gameNamespace.to(gameId).emit("turn-completed", {
+          playerId,
+          currentPlayer: game.currentPlayer,
+          gameState: game,
+          message: `Хід автоматично передано`,
+          timestamp: new Date().toISOString(),
+        });
+      }
+
     } catch (error) {
       console.error(`❌ Error executing turn for ${playerId}:`, error);
       socket.emit("error", {
@@ -931,31 +953,71 @@ gameNamespace.on("connection", (socket) => {
     }
   });
 
-  // Обробка купівлі угоди
+  // ✅ Обробка купівлі угоди
   socket.on("buy-deal", async ({ gameId, playerId, dealId }) => {
     console.log(`🏠 Player ${playerId} buying deal ${dealId} in game ${gameId}`);
-    
+
     try {
       const game = gameStore.get(gameId);
       if (!game) throw new Error("Game not found");
-      
+
       const result = await GameMechanicsService.buyDeal(game, playerId, dealId);
-      
+
       if (result.success) {
+        const player = game.players.find(p => p.id === playerId);
+
+        // Перевіряємо умову переходу на Fast Track
+        if (player && !player.isOnFastTrack && player.finances) {
+          const passiveIncome = player.finances.passiveIncome || 0;
+          const expenses = player.finances.expenses || 0;
+          if (passiveIncome > 0 && passiveIncome >= expenses) {
+            player.isOnFastTrack = true;
+            player.fastTrackPosition = 0;
+            console.log(`🚀 [BUY-DEAL] ${player.name} → Fast Track! passiveIncome=$${passiveIncome} >= expenses=$${expenses}`);
+            gameNamespace.to(gameId).emit("fast-track-moved", {
+              playerId,
+              player,
+              gameState: game,
+              message: `🎉 ${player.name} вийшов на швидку доріжку! Пасивний дохід $${passiveIncome} >= витрат $${expenses}`
+            });
+          }
+        }
+
+        // Повідомляємо про успішну купівлю
         gameNamespace.to(gameId).emit("deal-completed", {
           playerId,
           dealId,
           success: true,
           message: result.message,
-          newCashBalance: game.players.find(p => p.id === playerId).finances.cash
+          newCashBalance: player?.finances?.cash || 0,
+          passiveIncome: player?.finances?.passiveIncome || 0,
+          gameState: game,
         });
-        
-        const player = game.players.find(p => p.id === playerId);
+
         gameNamespace.to(gameId).emit("player-finances-updated", {
           playerId,
-          finances: player.finances
+          finances: player?.finances,
         });
-        
+
+        // ✅ Передаємо хід наступному гравцю
+        const players = game.players;
+        const currentIndex = players.findIndex(p => p.id === playerId);
+        const nextIndex = (currentIndex + 1) % players.length;
+        game.currentPlayer = players[nextIndex].id;
+        game.turn = (game.turn || 0) + 1;
+        game.updatedAt = new Date();
+        gameStore.set(gameId, game);
+
+        console.log(`🔄 [BUY-DEAL] Turn passed: ${playerId} → ${game.currentPlayer}`);
+
+        gameNamespace.to(gameId).emit("turn-completed", {
+          playerId,
+          currentPlayer: game.currentPlayer,
+          gameState: game,
+          message: `${player?.name || playerId} купив угоду та передав хід`,
+          timestamp: new Date().toISOString(),
+        });
+
         emitGameState(gameId);
       } else {
         socket.emit("error", { message: result.message });
@@ -963,6 +1025,86 @@ gameNamespace.on("connection", (socket) => {
     } catch (error) {
       console.error("Error processing buy-deal:", error);
       socket.emit("error", { message: "Помилка при купівлі угоди" });
+    }
+  });
+
+  // ✅ Відхилення угоди — просто передаємо хід
+  socket.on("reject-deal", ({ gameId, playerId, dealId }) => {
+    console.log(`🚫 Player ${playerId} rejected deal ${dealId} in game ${gameId}`);
+
+    const game = gameStore.get(gameId);
+    if (!game) {
+      socket.emit("error", { message: "Game not found" });
+      return;
+    }
+
+    // Позначаємо deal як недоступний (відхилений)
+    if (dealId) {
+      const deal = game.deals.find(d => d.id === dealId);
+      if (deal) deal.isAvailable = false;
+    }
+
+    // Передаємо хід наступному гравцю
+    const players = game.players;
+    const currentIndex = players.findIndex(p => p.id === playerId);
+    const nextIndex = (currentIndex + 1) % players.length;
+    game.currentPlayer = players[nextIndex].id;
+    game.turn = (game.turn || 0) + 1;
+    game.updatedAt = new Date();
+    gameStore.set(gameId, game);
+
+    console.log(`🔄 [REJECT-DEAL] Turn passed: ${playerId} → ${game.currentPlayer}`);
+
+    gameNamespace.to(gameId).emit("turn-completed", {
+      playerId,
+      currentPlayer: game.currentPlayer,
+      gameState: game,
+      message: `Угоду відхилено, хід передано`,
+      timestamp: new Date().toISOString(),
+    });
+
+    emitGameState(gameId);
+  });
+
+  // ✅ Продаж активу гравця
+  socket.on("sell-deal", async ({ gameId, playerId, assetId, sellPrice }) => {
+    console.log(`💰 Player ${playerId} selling asset ${assetId} in game ${gameId}`);
+
+    try {
+      const game = gameStore.get(gameId);
+      if (!game) throw new Error("Game not found");
+
+      const result = await GameMechanicsService.sellAsset(game, playerId, assetId, sellPrice);
+
+      if (result.success) {
+        const player = game.players.find(p => p.id === playerId);
+
+        game.updatedAt = new Date();
+        gameStore.set(gameId, game);
+
+        gameNamespace.to(gameId).emit("deal-sold", {
+          playerId,
+          assetId,
+          assetName: assetId,
+          amountReceived: result.amountReceived || 0,
+          profit: result.profit || 0,
+          newCashBalance: player?.finances?.cash || 0,
+          passiveIncome: player?.finances?.passiveIncome || 0,
+          gameState: game,
+        });
+
+        gameNamespace.to(gameId).emit("player-finances-updated", {
+          playerId,
+          finances: player?.finances,
+        });
+
+        emitGameState(gameId);
+      } else {
+        socket.emit("error", { message: result.message });
+      }
+    } catch (error) {
+      console.error("Error processing sell-deal:", error);
+      socket.emit("error", { message: "Помилка при продажу активу" });
     }
   });
 

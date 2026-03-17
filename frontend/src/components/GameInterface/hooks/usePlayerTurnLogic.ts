@@ -34,7 +34,10 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setP
 
   // Ефект для прослуховування результатів ходу через сокети
   useEffect(() => {
-    if (!socketService.isGameConnected) return;
+    // ⚠️ FIX: Не блокуємо реєстрацію — сокет може ще не бути connected в момент монтування
+    // onGameEvent кидає якщо gameSocket=null, тому перевіряємо socket напряму
+    const socket = socketService.getGameSocket();
+    if (!socket) return;
 
     const handleDiceRolled = (data: any) => {
       console.log('📡 Received dice-rolled event:', data);
@@ -158,15 +161,16 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setP
       }
     };
 
-    socketService.onGameEvent('dice-rolled', handleDiceRolled);
+    socket.on('dice-rolled', handleDiceRolled);
     return () => {
-      socketService.offGameEvent('dice-rolled', handleDiceRolled);
+      socket.off('dice-rolled', handleDiceRolled);
     };
   }, [playerId]);
 
   // Прослуховуємо FAST_TRACK_MOVED — гравець вийшов на швидку доріжку
   useEffect(() => {
-    if (!socketService.isGameConnected) return;
+    const socket = socketService.getGameSocket();
+    if (!socket) return;
 
     const handleFastTrackMoved = (data: any) => {
       const { setGame } = useGameStore.getState();
@@ -180,15 +184,16 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setP
       }
     };
 
-    socketService.onGameEvent('fast-track-moved', handleFastTrackMoved);
+    socket.on('fast-track-moved', handleFastTrackMoved);
     return () => {
-      socketService.offGameEvent('fast-track-moved', handleFastTrackMoved);
+      socket.off('fast-track-moved', handleFastTrackMoved);
     };
   }, [playerId]);
 
   // Прослуховуємо GAME_WON — хтось переміг
   useEffect(() => {
-    if (!socketService.isGameConnected) return;
+    const socket = socketService.getGameSocket();
+    if (!socket) return;
 
     const handleGameWon = (data: any) => {
       const { setGame } = useGameStore.getState();
@@ -201,15 +206,16 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setP
       }
     };
 
-    socketService.onGameEvent('game-won', handleGameWon);
+    socket.on('game-won', handleGameWon);
     return () => {
-      socketService.offGameEvent('game-won', handleGameWon);
+      socket.off('game-won', handleGameWon);
     };
   }, [playerId]);
 
   // Прослуховуємо DEAL_SOLD — актив успішно продано
   useEffect(() => {
-    if (!socketService.isGameConnected) return;
+    const socket = socketService.getGameSocket();
+    if (!socket) return;
 
     const handleDealSold = (data: any) => {
       const { setGame, setCurrentPlayer } = useGameStore.getState();
@@ -228,13 +234,14 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setP
       }
     };
 
-    socketService.onGameEvent('deal-sold' as any, handleDealSold);
-    return () => socketService.offGameEvent('deal-sold' as any, handleDealSold);
+    socket.on('deal-sold' as any, handleDealSold);
+    return () => socket.off('deal-sold' as any, handleDealSold);
   }, [playerId]);
 
   // Прослуховуємо DIVORCE_APPLIED — розлучення (50% готівки)
   useEffect(() => {
-    if (!socketService.isGameConnected) return;
+    const socket = socketService.getGameSocket();
+    if (!socket) return;
 
     const handleDivorceApplied = (data: any) => {
       const { setGame, setCurrentPlayer } = useGameStore.getState();
@@ -248,13 +255,14 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setP
       }
     };
 
-    socketService.onGameEvent('divorce-applied' as any, handleDivorceApplied);
-    return () => socketService.offGameEvent('divorce-applied' as any, handleDivorceApplied);
+    socket.on('divorce-applied' as any, handleDivorceApplied);
+    return () => socket.off('divorce-applied' as any, handleDivorceApplied);
   }, [playerId]);
 
   // Прослуховуємо MARKET_BOOM — бум/обвал ринку
   useEffect(() => {
-    if (!socketService.isGameConnected) return;
+    const socket = socketService.getGameSocket();
+    if (!socket) return;
 
     const handleMarketBoom = (data: any) => {
       const { setGame } = useGameStore.getState();
@@ -270,8 +278,34 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setP
       );
     };
 
-    socketService.onGameEvent('market-boom' as any, handleMarketBoom);
-    return () => socketService.offGameEvent('market-boom' as any, handleMarketBoom);
+    socket.on('market-boom' as any, handleMarketBoom);
+    return () => socket.off('market-boom' as any, handleMarketBoom);
+  }, [playerId]);
+
+  // ✅ FIX: Прослуховуємо TURN_COMPLETED — хід передано наступному гравцю
+  // БЕЗ цього listener game.currentPlayer в сторі ніколи не оновлюється!
+  useEffect(() => {
+    const socket = socketService.getGameSocket();
+    if (!socket) return;
+
+    const handleTurnCompleted = (data: any) => {
+      console.log('🔄 [TURN-COMPLETED] Received:', data.currentPlayer, '← next player');
+      const { setGame, setCurrentPlayer } = useGameStore.getState();
+
+      if (data.gameState) {
+        setGame(data.gameState);
+        const updatedPlayer = data.gameState.players.find((p: any) => p.id === playerId);
+        if (updatedPlayer) setCurrentPlayer(updatedPlayer);
+      }
+
+      // Сповіщаємо гравця що настав його хід
+      if (data.currentPlayer === playerId) {
+        toasts.info('🎲 Ваш хід!', 'Кидайте кубик!');
+      }
+    };
+
+    socket.on('turn-completed', handleTurnCompleted);
+    return () => socket.off('turn-completed', handleTurnCompleted);
   }, [playerId]);
 
   // handleExecuteTurn: запуск ходу через бекенд
