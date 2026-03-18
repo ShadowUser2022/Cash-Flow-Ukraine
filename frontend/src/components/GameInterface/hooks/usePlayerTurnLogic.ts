@@ -390,6 +390,32 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setP
     return () => socket.off('turn-completed', handleTurnCompleted);
   }, [playerId]);
 
+  // ✅ FIX: Прослуховуємо GAME-STATE — бекенд регулярно шле повний стан гри
+  // Без цього listener всі emitGameState() на бекенді ігноруються фронтом
+  // Це виправляє: reconnect scenarios, missed events, stuck UI
+  useEffect(() => {
+    const socket = socketService.getGameSocket();
+    if (!socket) return;
+
+    const handleGameState = (data: any) => {
+      const { setGame, setCurrentPlayer } = useGameStore.getState();
+      if (data && data.id) {
+        // data is the game object directly
+        setGame(data);
+        const updatedPlayer = data.players?.find((p: any) => p.id === playerId);
+        if (updatedPlayer) setCurrentPlayer(updatedPlayer);
+      } else if (data && data.game) {
+        // data is { game: ... }
+        setGame(data.game);
+        const updatedPlayer = data.game.players?.find((p: any) => p.id === playerId);
+        if (updatedPlayer) setCurrentPlayer(updatedPlayer);
+      }
+    };
+
+    socket.on('game-state' as any, handleGameState);
+    return () => socket.off('game-state' as any, handleGameState);
+  }, [playerId]);
+
   // ⏱️ Turn timer listeners
   useEffect(() => {
     const socket = socketService.getGameSocket();

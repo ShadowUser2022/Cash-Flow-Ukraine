@@ -13,6 +13,7 @@ class SocketService {
     ClientToServerEvents
   > | null = null;
   private serverUrl: string;
+  private _pendingRejoin: { gameId: string; playerId: string; playerName?: string } | null = null;
 
   constructor() {
     this.serverUrl = config.socketUrl;
@@ -31,11 +32,18 @@ class SocketService {
     });
 
     this.gameSocket.on("connect", () => {
-      console.log("Connected to game server");
+      console.log("✅ Connected to game server:", this.gameSocket?.id);
+      // ✅ FIX: якщо socket перепідключився з новим ID — автоматично re-join кімнати гри
+      // Інакше після reconnect socket не отримує broadcast events (turn-completed тощо)
+      if (this._pendingRejoin) {
+        const { gameId, playerId, playerName } = this._pendingRejoin;
+        console.log(`🔄 Auto-rejoining game room ${gameId} after reconnect`);
+        this.gameSocket?.emit("join-game" as any, { gameId, playerId, playerName });
+      }
     });
 
     this.gameSocket.on("disconnect", (reason) => {
-      console.log("Disconnected from game server:", reason);
+      console.log("⚠️ Disconnected from game server:", reason);
     });
 
     this.gameSocket.on("connect_error", (error) => {
@@ -43,6 +51,14 @@ class SocketService {
     });
 
     return this.gameSocket;
+  }
+
+  setRejoinData(gameId: string, playerId: string, playerName?: string) {
+    this._pendingRejoin = { gameId, playerId, playerName };
+  }
+
+  clearRejoinData() {
+    this._pendingRejoin = null;
   }
 
   // Підключення до WebRTC namespace
@@ -83,6 +99,9 @@ class SocketService {
       playerId,
       playerName,
     });
+
+    // ✅ FIX: зберігаємо дані для авто-rejoin при reconnect
+    this.setRejoinData(gameId, playerId, playerName);
   }
 
   leaveGame(gameId: string, playerId: string) {

@@ -686,6 +686,68 @@ function startTurnTimer(gameId, duration) {
 }
 // ─────────────────────────────────────────────
 
+// ─────────────────────────────────────────────
+// INTERACTION TIMER — резервний таймер для card interactions
+// Якщо гравець не натискає кнопку на картці протягом 45 секунд — хід передається автоматично
+// ─────────────────────────────────────────────
+const interactionTimers = new Map(); // gameId → { handle, playerId, startedAt }
+const INTERACTION_TIMER_DURATION = 45; // seconds to interact with a card
+
+function clearInteractionTimer(gameId) {
+  if (interactionTimers.has(gameId)) {
+    const { handle } = interactionTimers.get(gameId);
+    clearTimeout(handle);
+    interactionTimers.delete(gameId);
+    console.log(`🃏 [INTERACTION-TIMER] Cleared for game ${gameId}`);
+  }
+}
+
+function startInteractionTimer(gameId, playerId) {
+  clearInteractionTimer(gameId);
+
+  const game = gameStore.get(gameId);
+  if (!game || game.state !== 'in_progress') return;
+
+  const startedAt = Date.now();
+
+  console.log(`🃏 [INTERACTION-TIMER] ${INTERACTION_TIMER_DURATION}s for ${playerId} to interact with card in ${gameId}`);
+
+  const handle = setTimeout(() => {
+    const g = gameStore.get(gameId);
+    if (!g || g.state !== 'in_progress') return;
+
+    // Перевіряємо що ще той самий гравець і той самий таймер
+    const timerData = interactionTimers.get(gameId);
+    if (!timerData || timerData.startedAt !== startedAt) return;
+
+    interactionTimers.delete(gameId);
+
+    console.log(`🃏 [INTERACTION-TIMER] EXPIRED for ${playerId} in ${gameId} — auto-passing turn`);
+
+    // Передаємо хід наступному гравцю
+    const players = g.players;
+    const currentIndex = players.findIndex(p => p.id === playerId);
+    const nextIndex = (currentIndex + 1) % players.length;
+    g.currentPlayer = players[nextIndex].id;
+    g.turn = (g.turn || 0) + 1;
+    g.updatedAt = new Date();
+    gameStore.set(gameId, g);
+
+    gameNamespace.to(gameId).emit('turn-completed', {
+      playerId,
+      currentPlayer: g.currentPlayer,
+      gameState: g,
+      message: '🃏 Час на картку вийшов — хід передано автоматично',
+      timestamp: new Date().toISOString(),
+    });
+
+    startTurnTimer(gameId); // ⏱️ запускаємо таймер для наступного гравця
+  }, INTERACTION_TIMER_DURATION * 1000);
+
+  interactionTimers.set(gameId, { handle, playerId, startedAt });
+}
+// ─────────────────────────────────────────────
+
 gameNamespace.on("connection", (socket) => {
   console.log("Game client connected:", socket.id);
 
@@ -966,6 +1028,10 @@ gameNamespace.on("connection", (socket) => {
           timestamp: new Date().toISOString(),
         });
         startTurnTimer(gameId); // ⏱️ запускаємо таймер для наступного гравця
+      } else {
+        // ✅ FIX: гравець має картку — запускаємо резервний таймер 45с на взаємодію
+        // Якщо completeTurn не прийде — хід передасться автоматично
+        startInteractionTimer(gameId, playerId);
       }
 
     } catch (error) {
@@ -987,6 +1053,7 @@ gameNamespace.on("connection", (socket) => {
   // Обробка завершення ходу з card actions
   socket.on("turn-completed", ({ gameId, playerId }) => {
     console.log(`🎯 Turn completed for player ${playerId} in game ${gameId}`);
+    clearInteractionTimer(gameId); // ✅ гравець натиснув кнопку — знімаємо резервний таймер
 
     const game = gameStore.get(gameId);
     if (game) {
@@ -1032,6 +1099,7 @@ gameNamespace.on("connection", (socket) => {
   });
   // Обробка сплати витрат
   socket.on("pay-expense", ({ gameId, playerId, amount }) => {
+    clearInteractionTimer(gameId); // ✅ гравець відреагував на doodad/expense картку
     console.log(
       `💸 Player ${playerId} paying expense $${amount} in game ${gameId}`,
     );
@@ -1077,6 +1145,7 @@ gameNamespace.on("connection", (socket) => {
   // ✅ Обробка купівлі угоди
   socket.on("buy-deal", async ({ gameId, playerId, dealId }) => {
     console.log(`🏠 Player ${playerId} buying deal ${dealId} in game ${gameId}`);
+    clearInteractionTimer(gameId); // ✅ гравець відреагував на картку
 
     try {
       const game = gameStore.get(gameId);
@@ -1190,6 +1259,7 @@ gameNamespace.on("connection", (socket) => {
   // ✅ Відхилення угоди — просто передаємо хід
   socket.on("reject-deal", ({ gameId, playerId, dealId }) => {
     console.log(`🚫 Player ${playerId} rejected deal ${dealId} in game ${gameId}`);
+    clearInteractionTimer(gameId); // ✅ гравець відреагував на картку
 
     const game = gameStore.get(gameId);
     if (!game) {
@@ -1459,6 +1529,7 @@ gameNamespace.on("connection", (socket) => {
   );
   // Обробка вибору благодійності
   socket.on("charity-choice", ({ gameId, playerId, choice, amount }) => {
+    clearInteractionTimer(gameId); // ✅ гравець відреагував на charity картку
     console.log(
       `❤️ Player ${playerId} charity choice: ${choice}, amount: $${amount} in game ${gameId}`,
     );
@@ -1524,6 +1595,7 @@ gameNamespace.on("connection", (socket) => {
 
   // Обробка ринкових дій
   socket.on("market-action", ({ gameId, playerId, action, data }) => {
+    clearInteractionTimer(gameId); // ✅ гравець відреагував на market картку
     console.log(
       `📈 Player ${playerId} market action: ${action} in game ${gameId}`,
     );
