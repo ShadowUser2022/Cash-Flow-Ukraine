@@ -544,6 +544,10 @@ export class CardService {
 							description: marketCard.description,
 							benefit: marketCard.benefit,
 							cost: 0,
+							// ✅ FIX: передаємо sell-механіку на фронт щоб показати boom/crash кнопки
+							sellMultiplier: (marketCard as any).sellMultiplier ?? null,
+							affectedAssetType: (marketCard as any).affectedAssetType ?? 'all',
+							dividendMonths: (marketCard as any).dividendMonths ?? null,
 							isAvailable: true
 						}
 					}

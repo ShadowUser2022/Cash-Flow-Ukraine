@@ -584,12 +584,14 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setP
     
     // Для opportunity/business бекенд сам емітить turn-completed після buy-deal або reject-deal.
     // Для решти карток (doodad, lawsuit, baby, market тощо) — клієнт надсилає turn-completed.
+    // ✅ FIX: isInvestmentCard = true тільки якщо картка має id (без id — fallback через completeTurn)
+    const hasValidId = !!currentEventCard?.id;
     const isInvestmentCard =
-      currentEventCard?.type === 'opportunity' || currentEventCard?.type === 'business';
+      (currentEventCard?.type === 'opportunity' || currentEventCard?.type === 'business') && hasValidId;
 
     // Якщо відхиляємо угоду — повідомляємо бекенд щоб він передав хід
-    if (!accept && isInvestmentCard && !isOffline && currentEventCard?.id) {
-      socketService.rejectDeal(game.id, playerId, currentEventCard.id);
+    if (!accept && isInvestmentCard && !isOffline) {
+      socketService.rejectDeal(game.id, playerId, currentEventCard!.id);
     }
 
     // Закриваємо картку

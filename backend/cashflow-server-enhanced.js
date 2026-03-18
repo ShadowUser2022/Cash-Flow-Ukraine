@@ -1142,11 +1142,48 @@ gameNamespace.on("connection", (socket) => {
 
         emitGameState(gameId);
       } else {
+        // ✅ FIX: навіть при невдалій купівлі — передаємо хід щоб гра не зависала
         socket.emit("error", { message: result.message });
+        console.log(`⚠️ [BUY-DEAL FAILED] ${result.message}. Passing turn anyway.`);
+        const players = game.players;
+        const currentIndex = players.findIndex(p => p.id === playerId);
+        const nextIndex = (currentIndex + 1) % players.length;
+        game.currentPlayer = players[nextIndex].id;
+        game.turn = (game.turn || 0) + 1;
+        game.updatedAt = new Date();
+        gameStore.set(gameId, game);
+        startTurnTimer(gameId);
+        gameNamespace.to(gameId).emit("turn-completed", {
+          playerId,
+          currentPlayer: game.currentPlayer,
+          gameState: game,
+          message: `Угода недоступна: ${result.message}. Хід передано.`,
+          timestamp: new Date().toISOString(),
+        });
+        emitGameState(gameId);
       }
     } catch (error) {
       console.error("Error processing buy-deal:", error);
       socket.emit("error", { message: "Помилка при купівлі угоди" });
+      // ✅ FIX: при exception — теж передаємо хід щоб не зависати
+      try {
+        const game = gameStore.get(gameId);
+        if (game) {
+          const players = game.players;
+          const currentIndex = players.findIndex(p => p.id === playerId);
+          const nextIndex = (currentIndex + 1) % players.length;
+          game.currentPlayer = players[nextIndex].id;
+          game.updatedAt = new Date();
+          gameStore.set(gameId, game);
+          gameNamespace.to(gameId).emit("turn-completed", {
+            playerId,
+            currentPlayer: game.currentPlayer,
+            gameState: game,
+            message: "Помилка при купівлі — хід передано автоматично",
+            timestamp: new Date().toISOString(),
+          });
+        }
+      } catch (e) { /* ignore */ }
     }
   });
 
