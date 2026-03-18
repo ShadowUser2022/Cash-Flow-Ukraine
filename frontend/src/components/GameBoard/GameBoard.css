@@ -548,6 +548,13 @@
 	border-color: rgba(14, 165, 233, 0.3);
 }
 
+.board-cell.business {
+	background: linear-gradient(135deg, #ea580c 0%, #c2410c 50%, #9a3412 100%);
+	color: white;
+	border-color: rgba(251, 146, 60, 0.4);
+	animation: sophisticated-glow 3s ease-in-out infinite;
+}
+
 .board-cell.cash-flow-day,
 .board-cell.cashflow_day {
 	background: linear-gradient(135deg, #ca8a04 0%, #a16207 50%, #854d0e 100%);
