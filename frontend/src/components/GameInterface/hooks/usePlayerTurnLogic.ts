@@ -59,7 +59,10 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setP
 
     const handleDiceRolled = (data: any) => {
       console.log('📡 Received dice-rolled event:', data);
-      
+
+      // Розблокуємо кубик — сервер підтвердив хід
+      useGameStore.getState().setDiceRolling(false);
+
       const { setGame, setCurrentPlayer } = useGameStore.getState();
       
       // Знаходимо старе положення гравця перед оновленням
@@ -372,7 +375,10 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setP
 
     const handleTurnCompleted = (data: any) => {
       console.log('🔄 [TURN-COMPLETED] Received:', data.currentPlayer, '← next player');
-      const { setGame, setCurrentPlayer } = useGameStore.getState();
+      const { setGame, setCurrentPlayer, setDiceRolling } = useGameStore.getState();
+
+      // Скидаємо стан очікування кубика при передачі ходу
+      setDiceRolling(false);
 
       if (data.gameState) {
         setGame(data.gameState);
