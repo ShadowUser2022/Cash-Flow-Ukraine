@@ -22,8 +22,8 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setP
   const isMyTurn = !!game && !!currentPlayer && game.currentPlayer === playerId;
 
   // canMoveToFastTrack: реальна перевірка буде на основі стану гравця
-  const canMoveToFastTrack = currentPlayer?.finances 
-    ? (currentPlayer.finances.passiveIncome >= currentPlayer.finances.expenses) 
+  const canMoveToFastTrack = currentPlayer?.finances
+    ? (currentPlayer.finances.passiveIncome >= currentPlayer.finances.expenses)
     : false;
 
   const isOffline = game?.id === 'DEV-MODE' || game?.id === 'OFFLINE-MODE';
@@ -31,6 +31,18 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setP
   // Стан для картки події
   const [currentEventCard, setCurrentEventCard] = useState<any>(null);
   const [showEventCard, setShowEventCard] = useState(false);
+
+  // Safety timeout: якщо diceRolling залишається true понад 8с — автоматично скидаємо
+  const { diceRolling } = useGameStore();
+  useEffect(() => {
+    if (!diceRolling) return;
+    const timer = setTimeout(() => {
+      useGameStore.getState().setDiceRolling(false);
+      toasts.error('Помилка зв\'язку', 'Немає відповіді від сервера. Спробуй ще раз.');
+    }, 8000);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [diceRolling]);
 
   // 🏗️ Стан аукціону для великих угод
   const [currentAuction, setCurrentAuction] = useState<any>(null);
@@ -375,7 +387,19 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setP
 
     const handleTurnCompleted = (data: any) => {
       console.log('🔄 [TURN-COMPLETED] Received:', data.currentPlayer, '← next player');
-      const { setGame, setCurrentPlayer, setDiceRolling } = useGameStore.getState();
+      const { setGame, setCurrentPlayer, setDiceRolling, diceRolling } = useGameStore.getState();
+
+      // Якщо dice-rolled не прийшов але є картка — показуємо її (хід вже завершено сервером)
+      const prevPlayerId = data.previousPlayer || data.playerId;
+      if (diceRolling && prevPlayerId === playerId && data.cellEffect?.type === 'draw_card') {
+        const card = data.cellEffect.data?.card;
+        if (card && card.type !== 'big') {
+          setTimeout(() => {
+            setCurrentEventCard({ ...card, _turnAlreadyDone: true });
+            setShowEventCard(true);
+          }, 500);
+        }
+      }
 
       // Скидаємо стан очікування кубика при передачі ходу
       setDiceRolling(false);
@@ -631,7 +655,8 @@ export function usePlayerTurnLogic({ game, playerId, currentPlayer, toasts, setP
     setCurrentEventCard(null);
 
     // Сигналізуємо про завершення ходу тільки якщо бекенд не робить це сам
-    if (!isOffline && !isInvestmentCard) {
+    // _turnAlreadyDone = хід вже завершено сервером (turn-completed прийшов без dice-rolled)
+    if (!isOffline && !isInvestmentCard && !currentEventCard?._turnAlreadyDone) {
       socketService.completeTurn(game.id, playerId);
     }
   };
