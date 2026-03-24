@@ -29,7 +29,9 @@ const GameBoard: React.FC<GameBoardProps> = ({
 		currentPlayer,
 		playerId,
 		diceAnimation,
-		setDiceAnimation
+		setDiceAnimation,
+		diceRolling,
+		setDiceRolling
 	} = useGameStore();
 
 	const [animatingPlayer, setAnimatingPlayer] = useState<string | null>(null);
@@ -57,7 +59,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
 			return;
 		}
 
-		if (diceAnimation.isRolling) return;
+		if (diceAnimation.isRolling || diceRolling) return;
 
 		// Генеруємо результат кубика з кращою рандомізацією
 		const rollResult = Math.floor(crypto.getRandomValues(new Uint32Array(1))[0] / 0xFFFFFFFF * 6) + 1;
@@ -77,11 +79,13 @@ const GameBoard: React.FC<GameBoardProps> = ({
 			if (diceRef.current) {
 				diceRef.current.classList.remove('rolling-x', 'rolling-y', 'rolling-z');
 			}
-			
+
 			setDiceAnimation({ isRolling: false, result: rollResult, playerId });
-			
+			// Блокуємо кубик поки сервер не відповів (знімається в handleDiceRolled)
+			setDiceRolling(true);
+
 			console.log(`🎲 Кидок кубика! Результат: ${rollResult}`);
-			
+
 			// Відправляємо подію для статистики
 			window.dispatchEvent(new CustomEvent('diceRolled', { detail: rollResult }));
 
@@ -93,7 +97,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
 			if (onExecuteTurn) {
 				onExecuteTurn();
 			}
-			
+
 			console.log(`🎲 Кубик кинутий! Гравець ${currentPlayer.name} переміщується на ${rollResult} клітинок`);
 		}, 1000);
 	};
@@ -255,11 +259,11 @@ const GameBoard: React.FC<GameBoardProps> = ({
 					</div>
 				</div>
 				<button
-					className="roll-button"
+					className={`roll-button${diceRolling && !diceAnimation.isRolling ? ' waiting' : ''}`}
 					onClick={handleRollDice}
-					disabled={diceAnimation.isRolling || !game || game.currentPlayer !== playerId}
+					disabled={diceAnimation.isRolling || diceRolling || !game || game.currentPlayer !== playerId}
 				>
-					{diceAnimation.isRolling ? 'Кидаємо...' : 'Кинути кубик'}
+					{diceAnimation.isRolling ? 'Кидаємо...' : diceRolling ? 'Обробка...' : 'Кинути кубик'}
 				</button>
 				
 			</div>

@@ -158,6 +158,53 @@
   }
 }
 
+/* Мітка типу картки */
+.event-card-type-label {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: white;
+  padding: 3px 10px;
+  border-radius: 4px;
+  margin-bottom: 12px;
+}
+
+/* Кнопка на всю ширину (для обов'язкових подій) */
+.event-card-btn.full-width {
+  flex: 1;
+}
+
+/* Ринкова інформація */
+.event-card-market-info {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid;
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin: 12px 0;
+  text-align: center;
+}
+
+.market-multiplier {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+
+.market-asset {
+  font-size: 13px;
+  color: rgba(255,255,255,0.75);
+  margin-bottom: 4px;
+}
+
+.market-hint {
+  font-size: 12px;
+  color: rgba(255,255,255,0.5);
+  font-style: italic;
+}
+
 /* Мобільна адаптація */
 @media (max-width: 768px) {
   .event-card {
