@@ -912,11 +912,11 @@ gameNamespace.on("connection", (socket) => {
       // Знаходимо ефект клітинки
       const cellAction = turnResult.actions.find(a => a.type === 'draw_card');
       const cellEffect = cellAction ? {
-        type: cellAction.result?.effectType,
+        type: cellAction.result?.effectType || 'draw_card',
         data: cellAction.data
       } : null;
 
-      console.log(`🎲 Turn Result: Dice ${diceResult}, Pos ${newPosition}, Actions: ${turnResult.actions.length}`);
+      console.log(`🎲 Turn Result: Dice ${diceResult}, Pos ${newPosition}, Actions: ${turnResult.actions.length}, cellEffect: ${cellEffect?.type || 'none'}`);
 
       // 4. Оновлюємо updatedAt та зберігаємо в Map (хоча об'єкт вже змінено по посиланню)
       game.updatedAt = new Date();
