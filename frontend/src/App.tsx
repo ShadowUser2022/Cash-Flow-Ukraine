@@ -77,22 +77,13 @@ function App() {
     // Слухаємо події гри
     socket.on(SOCKET_EVENTS.GAME_STATE, (game) => {
       console.log("🎮 Game state updated from Socket.IO:", game);
-      console.log("🎮 Players in game:", game?.players?.length || 0);
-      console.log(
-        "🎮 Current player data:",
-        game?.players?.find((p) => p.id === currentPlayerId),
-      );
       setGame(game);
 
-      // ✅ Update current player data if found
-      const currentPlayerData = game?.players?.find(
-        (p) => p.id === currentPlayerId,
-      );
+      // ✅ Читаємо playerId прямо зі стору (уникаємо stale closure)
+      const pid = useGameStore.getState().playerId;
+      const currentPlayerData = game?.players?.find((p: any) => p.id === pid);
       if (currentPlayerData) {
-        console.log(
-          "✅ Updating current player from game state:",
-          currentPlayerData,
-        );
+        console.log("✅ Updating current player from game state:", currentPlayerData);
         setCurrentPlayer(currentPlayerData);
       }
     });
@@ -131,11 +122,10 @@ function App() {
       console.log("🚀 Game started event received:", data);
       if (data.gameState) {
         setGame(data.gameState);
-        
-        // Знаходимо поточного гравця
-        const currentPlayerData = data.gameState.players?.find(
-          (p: any) => p.id === currentPlayerId,
-        );
+
+        // ✅ Читаємо playerId прямо зі стору (уникаємо stale closure)
+        const pid = useGameStore.getState().playerId;
+        const currentPlayerData = data.gameState.players?.find((p: any) => p.id === pid);
         if (currentPlayerData) {
           setCurrentPlayer(currentPlayerData);
         }

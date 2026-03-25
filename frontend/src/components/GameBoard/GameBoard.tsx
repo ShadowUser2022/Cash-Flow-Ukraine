@@ -159,7 +159,8 @@ const GameBoard: React.FC<GameBoardProps> = ({
 			gridRow = gridSize - (cellIndex - (gridSize * 3 - 3));
 		}
 
-		const playersOnCell = game?.players.filter((p: Player) => (p.isOnFastTrack === currentPlayer?.isOnFastTrack) && (p.isOnFastTrack ? p.fastTrackPosition : p.position) === cellIndex) || [];
+		const onFastTrack = currentPlayer?.isOnFastTrack ?? false;
+		const playersOnCell = game?.players.filter((p: Player) => (p.isOnFastTrack === onFastTrack) && (p.isOnFastTrack ? p.fastTrackPosition : p.position) === cellIndex) || [];
 
 		return (
 			<div
