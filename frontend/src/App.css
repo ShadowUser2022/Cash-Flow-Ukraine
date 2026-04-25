@@ -354,53 +354,32 @@ button:disabled {
   border: 1px solid rgba(255, 220, 53, 0.28);
 }
 
-.turn-timeline {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.turn-step {
-  position: relative;
-  padding: 5px 10px 5px 24px;
-  color: #858b94;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+.turn-phase-dot {
+  width: 10px;
+  height: 10px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.035);
-  font-size: 12px;
-  font-weight: 800;
+  flex: 0 0 auto;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.08);
 }
 
-.turn-step::before {
-  content: "";
-  position: absolute;
-  left: 9px;
-  top: 50%;
-  width: 7px;
-  height: 7px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.24);
-  transform: translateY(-50%);
-}
-
-.turn-step.complete {
-  color: #b9d9c0;
-}
-
-.turn-step.complete::before {
-  background: #49b95c;
-  box-shadow: 0 0 12px rgba(73, 185, 92, 0.35);
-}
-
-.turn-step.active {
-  color: #ffe778;
-  border-color: rgba(255, 220, 53, 0.35);
-  background: rgba(255, 220, 53, 0.08);
-}
-
-.turn-step.active::before {
+.turn-phase-dot.phase-dice {
   background: #ffdc35;
-  box-shadow: 0 0 12px rgba(255, 220, 53, 0.35);
+  box-shadow: 0 0 0 2px rgba(255, 220, 53, 0.22), 0 0 18px rgba(255, 220, 53, 0.25);
+}
+
+.turn-phase-dot.phase-move {
+  background: #4bb6ff;
+  box-shadow: 0 0 0 2px rgba(75, 182, 255, 0.22), 0 0 18px rgba(75, 182, 255, 0.22);
+}
+
+.turn-phase-dot.phase-event {
+  background: #49b95c;
+  box-shadow: 0 0 0 2px rgba(73, 185, 92, 0.22), 0 0 18px rgba(73, 185, 92, 0.22);
+}
+
+.turn-phase-dot.phase-done {
+  background: #8f97a3;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.12);
 }
 
 .action-row {

@@ -38,7 +38,7 @@ function App() {
     [board, position, visibleCellCount],
   );
   const canRoll = game?.status === "ready" && rollState === "idle";
-  const turnPhase = game ? getTurnPhase(game) : "dice";
+  const turnPhase = useMemo(() => (game ? getTurnPhase(game, rollState) : "dice"), [game, rollState]);
   const fastTrackProgress = game
     ? Math.min(100, Math.round((game.player.passiveIncome / game.player.expenses) * 100))
     : 0;
@@ -239,6 +239,11 @@ function App() {
           <div className="panel event-panel">
             <div className="guide-copy">
               <div className="guide-title-line">
+                <span
+                  className={`turn-phase-dot ${turnPhaseDotClass(turnPhase)}`}
+                  aria-label={turnPhaseLabel(turnPhase)}
+                  title={turnPhaseLabel(turnPhase)}
+                />
                 <h2>{guideTitle(game)}</h2>
                 {game.pendingAction ? (
                   <strong className={`amount-badge ${game.pendingAction.type}`}>
@@ -250,18 +255,6 @@ function App() {
                     <small>{guideSummary(game)}</small>
                   </>
                 )}
-              </div>
-              <div className="turn-timeline" aria-label="Етапи ходу">
-                {turnSteps.map((step) => (
-                  <span
-                    key={step.id}
-                    className={`turn-step ${step.id === turnPhase ? "active" : ""} ${
-                      isStepComplete(step.id, turnPhase) ? "complete" : ""
-                    }`}
-                  >
-                    {step.label}
-                  </span>
-                ))}
               </div>
               <p>{guideHint(game)}</p>
             </div>
@@ -503,17 +496,43 @@ const turnSteps = [
 
 type TurnPhase = (typeof turnSteps)[number]["id"];
 
-function getTurnPhase(game: GameState): TurnPhase {
+function getTurnPhase(game: GameState, rollState: "idle" | "rolling" | "revealed" | "moving"): TurnPhase {
   if (game.status === "won" || game.status === "bankrupt") return "done";
   if (game.status === "pending") return "event";
+  if (rollState === "moving") return "move";
+  if (rollState === "rolling" || rollState === "revealed") return "dice";
   if (game.lastDice) return "done";
   return "dice";
 }
 
-function isStepComplete(step: TurnPhase, current: TurnPhase) {
-  const stepIndex = turnSteps.findIndex((item) => item.id === step);
-  const currentIndex = turnSteps.findIndex((item) => item.id === current);
-  return stepIndex < currentIndex;
+function turnPhaseLabel(phase: TurnPhase) {
+  switch (phase) {
+    case "dice":
+      return "Етап: кубик";
+    case "move":
+      return "Етап: рух";
+    case "event":
+      return "Етап: подія";
+    case "done":
+      return "Етап: готово";
+    default:
+      return "Етап";
+  }
+}
+
+function turnPhaseDotClass(phase: TurnPhase) {
+  switch (phase) {
+    case "dice":
+      return "phase-dice";
+    case "move":
+      return "phase-move";
+    case "event":
+      return "phase-event";
+    case "done":
+      return "phase-done";
+    default:
+      return "";
+  }
 }
 
 function guideSummary(game: GameState) {
