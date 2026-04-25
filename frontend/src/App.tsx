@@ -226,7 +226,7 @@ function App() {
                 <li>Кинь кубик і перемісти фішку на нову клітинку.</li>
                 <li>Прочитай подію клітинки: угода, витрата, зарплата або мрія.</li>
                 <li>В угодах рахуй: ціна, дохід і витрати. Якщо грошей не вистачає, можна взяти кредит у банку.</li>
-                <li>Підробіток/подарунок/спадок дається на клітинці “Підробіток” (кожного разу).</li>
+                <li>Підробіток дається на клітинці “Підробіток”.</li>
                 <li>Зарплата нараховується раз на 10 ходів (з підтвердженням і розрахунком).</li>
                 <li>Коли пасивний дохід стане більшим за витрати, відкриється швидкісна доріжка.</li>
               </ul>
@@ -436,7 +436,6 @@ function App() {
                 {visibleBoard.map(({ cell, index }) => (
                   <div key={`${cell}-${index}`} className={`cell ${cell} ${index === position ? "active" : ""}`}>
                     <span>{cellLabel(cell)}</span>
-                    <small>{cellHint(cell)}</small>
                     {index === position && <strong>ТИ</strong>}
                   </div>
                 ))}
@@ -487,14 +486,7 @@ function FinanceRow({ label, value, hint }: { label: string; value: string; hint
   );
 }
 
-const turnSteps = [
-  { id: "dice", label: "Кубик" },
-  { id: "move", label: "Рух" },
-  { id: "event", label: "Подія" },
-  { id: "done", label: "Готово" },
-] as const;
-
-type TurnPhase = (typeof turnSteps)[number]["id"];
+type TurnPhase = "dice" | "move" | "event" | "done";
 
 function getTurnPhase(game: GameState, rollState: "idle" | "rolling" | "revealed" | "moving"): TurnPhase {
   if (game.status === "won" || game.status === "bankrupt") return "done";
@@ -686,17 +678,6 @@ function cellLabel(cell: CellType) {
   };
 
   return labels[cell];
-}
-
-function cellHint(cell: CellType) {
-  const hints: Record<CellType, string> = {
-    payday: "Підробіток або подарунок",
-    deal: "Можна купити актив",
-    expense: "Плати зараз або в кредит",
-    dream: "Перевірка цілі виграшу",
-  };
-
-  return hints[cell];
 }
 
 function formatMoney(value: number) {

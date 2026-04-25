@@ -6,7 +6,8 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
-        target: "http://localhost:3001",
+        // Local backend runs on 3011 in this repo by default (to avoid conflicts).
+        target: "http://localhost:3011",
         changeOrigin: true,
       },
     },

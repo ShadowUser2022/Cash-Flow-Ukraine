@@ -82,7 +82,9 @@ export type GameState = {
   updatedAt: string;
 };
 
-export const API_URL = import.meta.env.VITE_API_URL ?? "/api";
+// In dev, always use relative /api so Vite proxy can route to the local backend,
+// and so the UI works on mobile devices on the same LAN.
+export const API_URL = import.meta.env.DEV ? "/api" : (import.meta.env.VITE_API_URL ?? "/api");
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
