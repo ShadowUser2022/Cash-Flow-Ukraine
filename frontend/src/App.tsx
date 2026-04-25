@@ -3,8 +3,6 @@ import "./App.css";
 import { api, API_URL, type CellType, type Dream, type GameState, type StartProfile } from "./lib/api";
 
 const sessionKey = "cash-flow-clean-session";
-const visibleCellCount = 5;
-
 function App() {
   const [playerName, setPlayerName] = useState("");
   const [dreams, setDreams] = useState<Dream[]>([]);
@@ -19,16 +17,25 @@ function App() {
   const [debugOpen, setDebugOpen] = useState(false);
   const [rollState, setRollState] = useState<"idle" | "rolling" | "revealed" | "moving">("idle");
   const [revealedDice, setRevealedDice] = useState<number | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     void bootstrap();
   }, []);
 
+  useEffect(() => {
+    const update = () => setIsMobile(window.innerWidth <= 760);
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
+  const visibleCellCount = isMobile ? 3 : 5;
   const board = game?.player.track === "fast" ? fastTrack : ratRace;
   const position = game?.player.track === "fast" ? game.player.fastPosition : game?.player.position;
   const visibleBoard = useMemo(
     () => getVisibleCells(board, position ?? 0, visibleCellCount),
-    [board, position],
+    [board, position, visibleCellCount],
   );
   const canRoll = game?.status === "ready" && rollState === "idle";
   const turnPhase = game ? getTurnPhase(game) : "dice";
@@ -127,7 +134,8 @@ function App() {
     <main className="app-shell">
       {game && (
         <button className="ghost top-left" onClick={exitGame}>
-          ← До лобі
+          <span className="back-icon">←</span>
+          <span className="back-text">До лобі</span>
         </button>
       )}
 

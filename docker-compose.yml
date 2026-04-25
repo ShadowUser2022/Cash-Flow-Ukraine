@@ -16,3 +16,25 @@ services:
       - backend
     ports:
       - "8090:80"
+
+  caddy:
+    image: caddy:2-alpine
+    depends_on:
+      - frontend
+    ports:
+      - "80:80"
+      - "443:443"
+    command:
+      - caddy
+      - reverse-proxy
+      - --from
+      - staging.bulgarlearn.site
+      - --to
+      - frontend:80
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

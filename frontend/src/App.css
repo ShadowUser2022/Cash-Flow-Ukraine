@@ -8,6 +8,14 @@
   position: absolute;
   left: 16px;
   top: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.back-icon {
+  display: inline-block;
+  line-height: 1;
 }
 
 .top-bar,
@@ -810,22 +818,28 @@ button:disabled {
   }
 
   .top-bar {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 10px;
+    align-items: center;
+    flex-direction: row;
+    gap: 12px;
     padding: 12px;
   }
 
   .brand {
-    gap: 6px;
+    flex-wrap: nowrap;
+    gap: 8px;
   }
 
   .brand strong {
     font-size: 16px;
+    white-space: nowrap;
   }
 
   .brand small {
     font-size: 12px;
+  }
+
+  .back-text {
+    display: none;
   }
 
   .server-chip {
@@ -847,10 +861,23 @@ button:disabled {
     padding: 14px;
   }
 
-  .game-grid,
+  .game-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
   .event-panel {
     display: grid;
     grid-template-columns: 1fr;
+  }
+
+  .board {
+    order: 2;
+  }
+
+  .finance-board {
+    order: 3;
   }
 
   .finance-groups {
