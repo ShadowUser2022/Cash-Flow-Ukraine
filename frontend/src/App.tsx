@@ -268,18 +268,6 @@ function App() {
                   </>
                 )}
               </div>
-              <div className="turn-timeline" aria-label="Етапи ходу">
-                {turnSteps.map((step) => (
-                  <span
-                    key={step.id}
-                    className={`turn-step ${step.id === turnPhase ? "active" : ""} ${
-                      isStepComplete(step.id, turnPhase) ? "complete" : ""
-                    }`}
-                  >
-                    {step.label}
-                  </span>
-                ))}
-              </div>
               <p>{guideHint(game)}</p>
             </div>
             <div className="guide-action">
