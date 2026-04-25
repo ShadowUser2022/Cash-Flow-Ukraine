@@ -4,17 +4,52 @@ export type PendingAction =
   | {
       type: "deal";
       title: string;
-      amount: number;
+      price: number;
+      income: number;
+      expenses: number;
       category: "business" | "real-estate";
       description: string;
-      why: string;
+      hint: string;
     }
-  | { type: "expense"; title: string; amount: number };
+  | { type: "expense"; title: string; amount: number; creditPayment: number; description: string; scale: "small" | "big" }
+  | { type: "freelance"; title: string; amount: number; cashBefore: number; cashAfter: number }
+  | {
+      type: "salary";
+      title: string;
+      salary: number;
+      passiveIncome: number;
+      expenses: number;
+      net: number;
+      debtPayment: number;
+      bankDebtBefore: number;
+      bankDebtAfter: number;
+      cashBefore: number;
+      cashAfter: number;
+    }
+  | { type: "level-up"; title: string; description: string };
 
 export type Dream = {
   id: string;
   title: string;
   cost: number;
+};
+
+export type StartProfile = {
+  id: string;
+  title: string;
+  description: string;
+  cash: number;
+  salary: number;
+  expenses: number;
+};
+
+export type ExpensesBreakdown = {
+  rent: number;
+  kids: number;
+  bankInterest: number;
+  food: number;
+  utilities: number;
+  fun: number;
 };
 
 export type GameState = {
@@ -25,17 +60,24 @@ export type GameState = {
     cash: number;
     salary: number;
     expenses: number;
+    expensesBreakdown: ExpensesBreakdown;
     passiveIncome: number;
+    bankDebt: number;
     position: number;
     fastPosition: number;
     track: Track;
     dream: Dream;
+    profile: StartProfile;
   };
-  status: "ready" | "pending" | "won";
+  status: "ready" | "pending" | "won" | "bankrupt";
   turn: number;
+  lastFreelanceTurn: number;
+  lastSalaryTurn: number;
+  lastInheritanceTurn: number;
   lastDice?: number;
   lastMove?: { from: number; to: number; track: Track };
   pendingAction?: PendingAction;
+  chainedAction?: PendingAction;
   message: string;
   updatedAt: string;
 };
@@ -50,7 +92,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));
-    throw new Error(payload.error ?? `Request failed: ${response.status}`);
+    throw new Error(payload.error ?? `Запит не виконано: ${response.status}`);
   }
 
   return response.json() as Promise<T>;
@@ -59,13 +101,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   health: () => request<{ status: string; timestamp: string }>("/health"),
   meta: () =>
-    request<{ dreams: Dream[]; board: { ratRace: CellType[]; fastTrack: CellType[] } }>(
+    request<{ dreams: Dream[]; profiles: StartProfile[]; board: { ratRace: CellType[]; fastTrack: CellType[] } }>(
       "/core/meta",
     ),
-  newGame: (playerName: string, dreamId: string) =>
+  newGame: (playerName: string, dreamId: string, profileId: string) =>
     request<GameState>("/core/new_game", {
       method: "POST",
-      body: JSON.stringify({ playerName, dreamId }),
+      body: JSON.stringify({ playerName, dreamId, profileId }),
     }),
   state: (gameId: string) => request<GameState>(`/core/state/${gameId}`),
   roll: (gameId: string) =>

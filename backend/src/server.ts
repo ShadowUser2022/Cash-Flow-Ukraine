@@ -1,6 +1,6 @@
 import cors from "cors";
 import express from "express";
-import { board, createGame, dreams, type GameState, resolvePending, rollGame } from "./core.js";
+import { board, createGame, dreams, startProfiles, type GameState, resolvePending, rollGame } from "./core.js";
 
 const app = express();
 const port = Number(process.env.PORT ?? 3001);
@@ -18,25 +18,32 @@ app.get("/api/health", (_req, res) => {
 });
 
 app.get("/api/core/meta", (_req, res) => {
-  res.json({ dreams, board });
+  res.json({ dreams, profiles: startProfiles, board });
 });
 
 app.post("/api/core/new_game", (req, res) => {
   const playerName = String(req.body?.playerName ?? "").trim();
   const dreamId = String(req.body?.dreamId ?? dreams[0].id);
+  const profileId = String(req.body?.profileId ?? startProfiles[0].id);
   const dreamExists = dreams.some((dream) => dream.id === dreamId);
+  const profileExists = startProfiles.some((profile) => profile.id === profileId);
 
   if (!playerName) {
-    res.status(400).json({ error: "playerName is required" });
+    res.status(400).json({ error: "Вкажи ім'я гравця" });
     return;
   }
 
   if (!dreamExists) {
-    res.status(400).json({ error: "dreamId is invalid" });
+    res.status(400).json({ error: "Обрана мрія недоступна" });
     return;
   }
 
-  const game = createGame(playerName, dreamId);
+  if (!profileExists) {
+    res.status(400).json({ error: "Обраний профіль недоступний" });
+    return;
+  }
+
+  const game = createGame(playerName, dreamId, profileId);
   games.set(game.id, game);
   res.status(201).json(game);
 });
@@ -45,7 +52,7 @@ app.get("/api/core/state/:gameId", (req, res) => {
   const game = games.get(req.params.gameId);
 
   if (!game) {
-    res.status(404).json({ error: "Game not found" });
+    res.status(404).json({ error: "Гру не знайдено" });
     return;
   }
 
@@ -58,7 +65,7 @@ app.post("/api/core/roll", (req, res) => {
 
 app.post("/api/core/resolve_pending", (req, res) => {
   if (typeof req.body?.accept !== "boolean") {
-    res.status(400).json({ error: "accept must be boolean" });
+    res.status(400).json({ error: "Рішення по події має бути так або ні" });
     return;
   }
 
@@ -74,14 +81,14 @@ function updateGame(
   const id = String(gameId ?? "");
 
   if (!id) {
-    res.status(400).json({ error: "gameId is required" });
+    res.status(400).json({ error: "Не передано ID гри" });
     return;
   }
 
   const game = games.get(id);
 
   if (!game) {
-    res.status(404).json({ error: "Game not found" });
+    res.status(404).json({ error: "Гру не знайдено" });
     return;
   }
 
@@ -91,7 +98,7 @@ function updateGame(
     res.json(next);
   } catch (error) {
     res.status(409).json({
-      error: error instanceof Error ? error.message : "Core action failed",
+      error: error instanceof Error ? error.message : "Дію гри не виконано",
     });
   }
 }
