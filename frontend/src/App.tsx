@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import "./App.css";
-import { api, API_URL, type CellType, type Dream, type GameState, type StartProfile } from "./lib/api";
+import { api, API_URL, type CellType, type Dream, type GameState, type StartProfile, type StockSymbol } from "./lib/api";
 
 const sessionKey = "cash-flow-clean-session";
 function App() {
@@ -18,6 +18,8 @@ function App() {
   const [rollState, setRollState] = useState<"idle" | "rolling" | "revealed" | "moving">("idle");
   const [revealedDice, setRevealedDice] = useState<number | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [selectedStock, setSelectedStock] = useState<StockSymbol>("AGRO");
+  const [stockShares, setStockShares] = useState("1");
 
   useEffect(() => {
     void bootstrap();
@@ -38,10 +40,14 @@ function App() {
     [board, position, visibleCellCount],
   );
   const canRoll = game?.status === "ready" && rollState === "idle";
-  const turnPhase = game ? getTurnPhase(game) : "dice";
+  const turnPhase = useMemo(() => (game ? getTurnPhase(game, rollState) : "dice"), [game, rollState]);
   const fastTrackProgress = game
     ? Math.min(100, Math.round((game.player.passiveIncome / game.player.expenses) * 100))
     : 0;
+  const portfolioValue = useMemo(() => {
+    if (!game) return 0;
+    return game.player.stocksPortfolio.reduce((sum, pos) => sum + pos.shares * (game.market[pos.symbol]?.price ?? 0), 0);
+  }, [game]);
 
   const salaryCountdown = useMemo(() => {
     if (!game) return null;
@@ -122,6 +128,12 @@ function App() {
       setRollState("idle");
       setRevealedDice(null);
     }
+  }
+
+  async function tradeStocks(side: "buy" | "sell") {
+    if (!game || game.pendingAction?.type !== "stocks") return;
+    const shares = Math.floor(Number(stockShares));
+    await run(() => api.stocksTrade(game.id, selectedStock, side, shares));
   }
 
   function exitGame() {
@@ -239,6 +251,11 @@ function App() {
           <div className="panel event-panel">
             <div className="guide-copy">
               <div className="guide-title-line">
+                <span
+                  className={`turn-phase-dot ${turnPhaseDotClass(turnPhase)}`}
+                  aria-label={turnPhaseLabel(turnPhase)}
+                  title={turnPhaseLabel(turnPhase)}
+                />
                 <h2>{guideTitle(game)}</h2>
                 {game.pendingAction ? (
                   <strong className={`amount-badge ${game.pendingAction.type}`}>
@@ -335,21 +352,61 @@ function App() {
                         <small>Натисни “Зрозуміло”, щоб перейти на швидкісну доріжку.</small>
                       </div>
                     )}
-                  </div>
-                  <div className="action-row">
-                    <button
-                      className="primary"
-                      disabled={isPrimaryActionDisabled(game)}
-                      onClick={() => run(() => api.resolvePending(game.id, true))}
-                    >
-                      {primaryActionLabel(game.pendingAction)}
-                    </button>
-                    {showSecondaryAction(game.pendingAction) && (
-                      <button onClick={() => run(() => api.resolvePending(game.id, false))}>
-                        {secondaryActionLabel(game.pendingAction)}
-                      </button>
+                    {game.pendingAction.type === "stocks" && (
+                      <div className="deal-details">
+                        <p>Купи дешевше — продай дорожче. Це ризик.</p>
+                        <div className="stocks-grid" aria-label="Ринок акцій">
+                          <label className="stocks-field">
+                            Тікер
+                            <select value={selectedStock} onChange={(e) => setSelectedStock(e.target.value as StockSymbol)}>
+                              {game.pendingAction.market.map((item) => (
+                                <option key={item.symbol} value={item.symbol}>
+                                  {item.symbol} · {formatMoney(item.price)}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="stocks-field">
+                            Кількість (шт.)
+                            <input
+                              inputMode="numeric"
+                              value={stockShares}
+                              onChange={(e) => setStockShares(e.target.value)}
+                              placeholder="1"
+                            />
+                          </label>
+                        </div>
+                        <small>
+                          У тебе:{" "}
+                          {game.pendingAction.portfolio.find((p) => p.symbol === selectedStock)?.shares ?? 0} шт.
+                        </small>
+                      </div>
                     )}
                   </div>
+                  {game.pendingAction.type === "stocks" ? (
+                    <div className="action-row">
+                      <button className="primary" onClick={() => void tradeStocks("buy")}>
+                        Купити
+                      </button>
+                      <button onClick={() => void tradeStocks("sell")}>Продати</button>
+                      <button onClick={() => run(() => api.resolvePending(game.id, false))}>Пропустити</button>
+                    </div>
+                  ) : (
+                    <div className="action-row">
+                      <button
+                        className="primary"
+                        disabled={isPrimaryActionDisabled(game)}
+                        onClick={() => run(() => api.resolvePending(game.id, true))}
+                      >
+                        {primaryActionLabel(game.pendingAction)}
+                      </button>
+                      {showSecondaryAction(game.pendingAction) && (
+                        <button onClick={() => run(() => api.resolvePending(game.id, false))}>
+                          {secondaryActionLabel(game.pendingAction)}
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <button className="primary" disabled={!canRoll} onClick={rollDice}>
@@ -395,6 +452,7 @@ function App() {
                   <FinanceRow label="Готівка" value={formatMoney(game.player.cash)} />
                   <FinanceRow label="Зарплата" value={formatMoney(game.player.salary)} hint="Нарахування раз на 10 ходів" />
                   <FinanceRow label="Пасивний дохід" value={formatMoney(game.player.passiveIncome)} />
+                  <FinanceRow label="Портфель акцій" value={formatMoney(portfolioValue)} hint="поточна вартість портфеля" />
                   <FinanceRow
                     label="Баланс / міс."
                     value={formatMoney(game.player.salary + game.player.passiveIncome - game.player.expenses)}
@@ -503,17 +561,43 @@ const turnSteps = [
 
 type TurnPhase = (typeof turnSteps)[number]["id"];
 
-function getTurnPhase(game: GameState): TurnPhase {
+function getTurnPhase(game: GameState, rollState: "idle" | "rolling" | "revealed" | "moving"): TurnPhase {
   if (game.status === "won" || game.status === "bankrupt") return "done";
   if (game.status === "pending") return "event";
+  if (rollState === "moving") return "move";
+  if (rollState === "rolling" || rollState === "revealed") return "dice";
   if (game.lastDice) return "done";
   return "dice";
 }
 
-function isStepComplete(step: TurnPhase, current: TurnPhase) {
-  const stepIndex = turnSteps.findIndex((item) => item.id === step);
-  const currentIndex = turnSteps.findIndex((item) => item.id === current);
-  return stepIndex < currentIndex;
+function turnPhaseLabel(phase: TurnPhase) {
+  switch (phase) {
+    case "dice":
+      return "Етап: кубик";
+    case "move":
+      return "Етап: рух";
+    case "event":
+      return "Етап: подія";
+    case "done":
+      return "Етап: готово";
+    default:
+      return "Етап";
+  }
+}
+
+function turnPhaseDotClass(phase: TurnPhase) {
+  switch (phase) {
+    case "dice":
+      return "phase-dice";
+    case "move":
+      return "phase-move";
+    case "event":
+      return "phase-event";
+    case "done":
+      return "phase-done";
+    default:
+      return "";
+  }
 }
 
 function guideSummary(game: GameState) {
@@ -601,6 +685,10 @@ function actionKindLabel(action: NonNullable<GameState["pendingAction"]>) {
     return "Витрата";
   }
 
+  if (action.type === "stocks") {
+    return "Акції";
+  }
+
   return action.category === "business" ? "Бізнес" : "Нерухомість";
 }
 
@@ -613,7 +701,11 @@ function primaryActionLabel(action: NonNullable<GameState["pendingAction"]>) {
     return `Оплатити ${formatMoney(action.amount)}`;
   }
 
-  return `Купити за ${formatMoney(action.price)}`;
+  if (action.type === "deal") {
+    return `Купити за ${formatMoney(action.price)}`;
+  }
+
+  return "Продовжити";
 }
 
 function isPrimaryActionDisabled(game: GameState) {
@@ -651,6 +743,10 @@ function pendingAmountLabel(action: NonNullable<GameState["pendingAction"]>) {
     return `+${formatMoney(action.amount)}`;
   }
 
+  if (action.type === "stocks") {
+    return "Ринок";
+  }
+
   return "Новий рівень";
 }
 
@@ -664,6 +760,7 @@ function cellLabel(cell: CellType) {
     deal: "Угода",
     expense: "Витрата",
     dream: "Мрія",
+    stocks: "Акції",
   };
 
   return labels[cell];
@@ -675,6 +772,7 @@ function cellHint(cell: CellType) {
     deal: "Можна купити актив",
     expense: "Плати зараз або в кредит",
     dream: "Перевірка цілі виграшу",
+    stocks: "Купи або продай",
   };
 
   return hints[cell];

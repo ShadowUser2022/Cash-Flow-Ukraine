@@ -1,5 +1,18 @@
 export type Track = "rat" | "fast";
-export type CellType = "payday" | "deal" | "expense" | "dream";
+export type CellType = "payday" | "deal" | "expense" | "dream" | "stocks";
+
+export type StockSymbol = "AGRO" | "RETAIL" | "IT" | "ENERGY" | "BANK" | "REALTY";
+
+export type StockPosition = {
+  symbol: StockSymbol;
+  shares: number;
+  avgPrice: number; // середня ціна входу
+};
+
+export type StockMarket = Record<
+  StockSymbol,
+  { price: number; basePrice: number; volatility: number; trendBias: number }
+>;
 export type PendingAction =
   | {
       type: "deal";
@@ -26,7 +39,8 @@ export type PendingAction =
       cashBefore: number;
       cashAfter: number;
     }
-  | { type: "level-up"; title: string; description: string };
+  | { type: "level-up"; title: string; description: string }
+  | { type: "stocks"; title: string; market: { symbol: StockSymbol; price: number }[]; portfolio: StockPosition[] };
 
 export type Dream = {
   id: string;
@@ -66,6 +80,7 @@ export type Player = {
   track: Track;
   dream: Dream;
   profile: StartProfile;
+  stocksPortfolio: StockPosition[];
 };
 
 export type GameState = {
@@ -81,6 +96,7 @@ export type GameState = {
   pendingAction?: PendingAction;
   /** Used to chain a major expense right after a salary event every N turns. */
   chainedAction?: PendingAction;
+  market: StockMarket;
   message: string;
   updatedAt: string;
 };
@@ -126,6 +142,7 @@ const ratRace: CellType[] = [
   "deal",
   "expense",
   "expense",
+  "stocks",
   "deal",
   "expense",
   "payday",
@@ -141,6 +158,7 @@ const ratRace: CellType[] = [
   "expense",
   "expense",
   "deal",
+  "stocks",
   "expense",
   "payday",
   "expense",
@@ -166,6 +184,15 @@ const fastTrack: CellType[] = [
 ];
 
 export const board = { ratRace, fastTrack };
+
+const stockMarketSeed: StockMarket = {
+  AGRO: { price: 24, basePrice: 24, volatility: 6, trendBias: 1 },
+  RETAIL: { price: 18, basePrice: 18, volatility: 5, trendBias: 0 },
+  IT: { price: 42, basePrice: 42, volatility: 10, trendBias: 1 },
+  ENERGY: { price: 30, basePrice: 30, volatility: 7, trendBias: 0 },
+  BANK: { price: 16, basePrice: 16, volatility: 4, trendBias: 0 },
+  REALTY: { price: 36, basePrice: 36, volatility: 8, trendBias: 1 },
+};
 
 const dealOffers: Extract<PendingAction, { type: "deal" }>[] = [
   {
@@ -345,6 +372,7 @@ export function createGame(playerName: string, dreamId: string, profileId = star
       track: "rat",
       dream,
       profile,
+      stocksPortfolio: [],
     },
     status: "ready",
     turn: 0,
@@ -352,6 +380,7 @@ export function createGame(playerName: string, dreamId: string, profileId = star
     lastSalaryTurn: 0,
     lastInheritanceTurn: 0,
     chainedAction: undefined,
+    market: stockMarketSeed,
     message: "Гра створена. Збери перші 10 000 грн готівки.",
     updatedAt: now,
   };
@@ -376,6 +405,7 @@ export function rollGame(game: GameState): GameState {
   const trackCells = player.track === "rat" ? ratRace : fastTrack;
   const current = player.track === "rat" ? player.position : player.fastPosition;
   const next = (current + dice) % trackCells.length;
+  const market = updateMarket(game.market);
 
   if (player.track === "rat") {
     player.position = next;
@@ -469,6 +499,15 @@ export function rollGame(game: GameState): GameState {
     pendingAction = pickExpenseOffer(game.turn, next, "small", smallExpenseOffers);
     status = "pending";
     message = "Подія: витрата. Оплати або візьми в кредит.";
+  } else if (status === "ready" && cell === "stocks") {
+    pendingAction = {
+      type: "stocks",
+      title: "Акції",
+      market: toMarketSnapshot(market),
+      portfolio: player.stocksPortfolio,
+    };
+    status = "pending";
+    message = "Подія: акції. Можна купити/продати або пропустити.";
   } else if (status === "ready" && cell === "dream") {
     if (player.cash + player.passiveIncome >= player.dream.cost) {
       status = "won";
@@ -490,6 +529,7 @@ export function rollGame(game: GameState): GameState {
     lastMove: { from: current, to: next, track: originalTrack },
     pendingAction,
     chainedAction,
+    market,
     message,
   });
 }
@@ -501,6 +541,20 @@ export function resolvePending(game: GameState, accept: boolean): GameState {
 
   let player = { ...game.player };
   const action = game.pendingAction;
+
+  if (action.type === "stocks") {
+    if (accept) {
+      throw new Error("Акції потребують вибору: купити/продати або пропустити.");
+    }
+
+    return touch({
+      ...game,
+      player,
+      status: "ready",
+      pendingAction: undefined,
+      message: "Акції: пропущено.",
+    });
+  }
 
   if (accept && action.type === "deal") {
     const shortage = Math.max(0, action.price - player.cash);
@@ -570,6 +624,10 @@ function resolveMessage(action: PendingAction, accept: boolean) {
     return "Підробіток підтверджено. Продовжуйте хід.";
   }
 
+  if (action.type === "stocks") {
+    return accept ? "Акції: дія підтверджена." : "Акції: пропущено.";
+  }
+
   if (action.type === "level-up") {
     return "Ви перейшли на швидкісну доріжку. Тепер рухайтесь до мрії.";
   }
@@ -609,4 +667,85 @@ function pickExpenseOffer(
 
 function touch(game: GameState): GameState {
   return { ...game, updatedAt: new Date().toISOString() };
+}
+
+function updateMarket(market: StockMarket): StockMarket {
+  const next = { ...market } as StockMarket;
+  (Object.keys(next) as StockSymbol[]).forEach((symbol) => {
+    const item = next[symbol];
+    const delta = randomInt(-item.volatility, item.volatility) + item.trendBias;
+    next[symbol] = { ...item, price: Math.max(1, item.price + delta) };
+  });
+  return next;
+}
+
+function toMarketSnapshot(market: StockMarket) {
+  return (Object.keys(market) as StockSymbol[]).map((symbol) => ({ symbol, price: market[symbol].price }));
+}
+
+export function stocksTrade(
+  game: GameState,
+  trade: { symbol: StockSymbol; side: "buy" | "sell"; shares: number },
+): GameState {
+  if (game.status !== "pending" || game.pendingAction?.type !== "stocks") {
+    throw new Error("Торгувати акціями можна тільки під час події “Акції”.");
+  }
+
+  const shares = Math.floor(trade.shares);
+  if (!Number.isFinite(shares) || shares <= 0) {
+    throw new Error("Кількість акцій має бути цілим числом > 0.");
+  }
+
+  const symbol = trade.symbol;
+  const quote = game.market[symbol];
+  if (!quote) {
+    throw new Error("Невідомий тикер.");
+  }
+
+  const price = quote.price;
+  let player = { ...game.player, stocksPortfolio: [...game.player.stocksPortfolio] };
+
+  const index = player.stocksPortfolio.findIndex((item) => item.symbol === symbol);
+  const existing = index >= 0 ? player.stocksPortfolio[index] : undefined;
+
+  if (trade.side === "buy") {
+    const cost = shares * price;
+    if (player.cash < cost) {
+      throw new Error("Не вистачає готівки");
+    }
+
+    player.cash -= cost;
+
+    if (!existing) {
+      player.stocksPortfolio.push({ symbol, shares, avgPrice: price });
+    } else {
+      const totalShares = existing.shares + shares;
+      const totalCost = existing.shares * existing.avgPrice + shares * price;
+      player.stocksPortfolio[index] = {
+        symbol,
+        shares: totalShares,
+        avgPrice: totalCost / totalShares,
+      };
+    }
+  } else {
+    if (!existing || existing.shares < shares) {
+      throw new Error("Недостатньо акцій для продажу.");
+    }
+
+    player.cash += shares * price;
+    const left = existing.shares - shares;
+    if (left === 0) {
+      player.stocksPortfolio.splice(index, 1);
+    } else {
+      player.stocksPortfolio[index] = { ...existing, shares: left };
+    }
+  }
+
+  return touch({
+    ...game,
+    player,
+    status: player.cash < 0 ? "bankrupt" : "ready",
+    pendingAction: undefined,
+    message: `Акції: ${trade.side === "buy" ? "куплено" : "продано"} ${shares} шт. ${symbol} по ${formatMoney(price)}.`,
+  });
 }

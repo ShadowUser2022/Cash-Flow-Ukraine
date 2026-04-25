@@ -1,5 +1,18 @@
 export type Track = "rat" | "fast";
-export type CellType = "payday" | "deal" | "expense" | "dream";
+export type CellType = "payday" | "deal" | "expense" | "dream" | "stocks";
+
+export type StockSymbol = "AGRO" | "RETAIL" | "IT" | "ENERGY" | "BANK" | "REALTY";
+
+export type StockPosition = {
+  symbol: StockSymbol;
+  shares: number;
+  avgPrice: number;
+};
+
+export type StockMarket = Record<
+  StockSymbol,
+  { price: number; basePrice: number; volatility: number; trendBias: number }
+>;
 export type PendingAction =
   | {
       type: "deal";
@@ -26,7 +39,8 @@ export type PendingAction =
       cashBefore: number;
       cashAfter: number;
     }
-  | { type: "level-up"; title: string; description: string };
+  | { type: "level-up"; title: string; description: string }
+  | { type: "stocks"; title: string; market: { symbol: StockSymbol; price: number }[]; portfolio: StockPosition[] };
 
 export type Dream = {
   id: string;
@@ -68,6 +82,7 @@ export type GameState = {
     track: Track;
     dream: Dream;
     profile: StartProfile;
+    stocksPortfolio: StockPosition[];
   };
   status: "ready" | "pending" | "won" | "bankrupt";
   turn: number;
@@ -78,6 +93,7 @@ export type GameState = {
   lastMove?: { from: number; to: number; track: Track };
   pendingAction?: PendingAction;
   chainedAction?: PendingAction;
+  market: StockMarket;
   message: string;
   updatedAt: string;
 };
@@ -119,5 +135,10 @@ export const api = {
     request<GameState>("/core/resolve_pending", {
       method: "POST",
       body: JSON.stringify({ gameId, accept }),
+    }),
+  stocksTrade: (gameId: string, symbol: StockSymbol, side: "buy" | "sell", shares: number) =>
+    request<GameState>("/core/stocks_trade", {
+      method: "POST",
+      body: JSON.stringify({ gameId, symbol, side, shares }),
     }),
 };

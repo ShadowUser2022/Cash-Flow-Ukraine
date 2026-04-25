@@ -1,6 +1,6 @@
 import cors from "cors";
 import express from "express";
-import { board, createGame, dreams, startProfiles, type GameState, resolvePending, rollGame } from "./core.js";
+import { board, createGame, dreams, startProfiles, stocksTrade, type GameState, resolvePending, rollGame } from "./core.js";
 
 const app = express();
 const port = Number(process.env.PORT ?? 3001);
@@ -71,6 +71,35 @@ app.post("/api/core/resolve_pending", (req, res) => {
 
   const accept = req.body.accept;
   updateGame(req.body?.gameId, res, (game) => resolvePending(game, accept));
+});
+
+app.post("/api/core/stocks_trade", (req, res) => {
+  const symbol = String(req.body?.symbol ?? "");
+  const side = String(req.body?.side ?? "");
+  const shares = Number(req.body?.shares);
+
+  if (!symbol) {
+    res.status(400).json({ error: "Не передано тикер" });
+    return;
+  }
+
+  if (side !== "buy" && side !== "sell") {
+    res.status(400).json({ error: "Невірний тип угоди" });
+    return;
+  }
+
+  if (!Number.isFinite(shares)) {
+    res.status(400).json({ error: "Не передано кількість акцій" });
+    return;
+  }
+
+  updateGame(req.body?.gameId, res, (game) =>
+    stocksTrade(game, {
+      symbol: symbol as Parameters<typeof stocksTrade>[1]["symbol"],
+      side: side as "buy" | "sell",
+      shares,
+    }),
+  );
 });
 
 function updateGame(
