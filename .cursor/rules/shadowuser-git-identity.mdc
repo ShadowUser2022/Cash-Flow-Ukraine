@@ -1,0 +1,18 @@
+---
+description: Enforce ShadowUser2022 git identity and explicit approval for other credentials
+alwaysApply: true
+---
+
+# Git Identity For This Project
+
+- This repository belongs to `ShadowUser2022`.
+- Commits and pushes must use only `ShadowUser2022 <tlkpetrov@gmail.com>`.
+- Do not use SETT/work identity, work SSH keys, work remotes, or `anatoliy.petrov@sett.ai`.
+- Before any `commit`, `push`, or remote change, check:
+  - `git branch --show-current`
+  - `git status -sb`
+  - `git remote -v`
+  - `git config user.name`
+  - `git config user.email`
+- If any non-ShadowUser2022 identity or credential would be used, stop and ask the user.
+- The only exception is a direct user message containing the exact word `дозволяю` for that specific action.
