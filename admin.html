@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Панель керування | UkrFlow Financial AI Master</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #07090e;
+      --bg-card: rgba(17, 24, 39, 0.7);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --secondary: #ec4899;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --font-heading: 'Outfit', sans-serif;
+      --font-body: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(236, 72, 153, 0.05) 0%, transparent 40%);
+      color: var(--text-main);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      padding: 2rem 1.5rem;
+      line-height: 1.5;
+    }
+
+    header {
+      max-width: 1200px;
+      margin: 0 auto 2.5rem auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 1.5rem;
+    }
+
+    .brand h1 {
+      font-family: var(--font-heading);
+      font-size: 2rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #a5b4fc 0%, #6366f1 50%, #ec4899 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.5px;
+    }
+
+    .brand p {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      margin-top: 0.25rem;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .btn {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+      color: white;
+      border: none;
+      padding: 0.625rem 1.25rem;
+      border-radius: 0.5rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: var(--font-body);
+      font-size: 0.875rem;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(99, 102, 241, 0.35);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      box-shadow: none;
+      color: var(--text-main);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .autorefresh-container {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      background: rgba(255, 255, 255, 0.03);
+      padding: 0.5rem 0.875rem;
+      border-radius: 0.5rem;
+      border: 1px solid var(--border-color);
+    }
+
+    .autorefresh-container input {
+      accent-color: var(--primary);
+      cursor: pointer;
+      width: 1rem;
+      height: 1rem;
+    }
+
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 2rem;
+    }
+
+    @media (min-width: 992px) {
+      main {
+        grid-template-columns: 7fr 5fr;
+      }
+    }
+
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .stat-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border-color);
+      border-radius: 1rem;
+      padding: 1.25rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      background: var(--primary);
+    }
+
+    .stat-card.pink::before { background: var(--secondary); }
+    .stat-card.green::before { background: var(--success); }
+    .stat-card.yellow::before { background: var(--warning); }
+
+    .stat-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .stat-value {
+      font-size: 2rem;
+      font-family: var(--font-heading);
+      font-weight: 700;
+      margin-top: 0.25rem;
+    }
+
+    .card {
+      background: var(--bg-card);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border-color);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .card-title {
+      font-family: var(--font-heading);
+      font-size: 1.15rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 0.75rem;
+    }
+
+    /* System Load Panel */
+    .system-card {
+      border: 1px solid var(--border-color);
+      background: linear-gradient(180deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%);
+      border-radius: 1rem;
+      padding: 1.5rem;
+    }
+
+    .metric-group {
+      margin-bottom: 1.25rem;
+    }
+
+    .metric-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.875rem;
+      margin-bottom: 0.35rem;
+    }
+
+    .metric-label {
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .metric-value-text {
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .progress-bar-bg {
+      width: 100%;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.4s ease, background-color 0.4s ease;
+      background: var(--success);
+    }
+
+    .domain-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: var(--success);
+      padding: 0.4rem 0.8rem;
+      border-radius: 0.5rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+    }
+
+    .domain-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 8px var(--success);
+    }
+
+    .rooms-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .room-item {
+      border: 1px solid var(--border-color);
+      border-radius: 0.75rem;
+      background: rgba(255, 255, 255, 0.02);
+      overflow: hidden;
+      transition: all 0.2s ease;
+    }
+
+    .room-header {
+      padding: 0.875rem 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .room-code {
+      font-family: var(--font-heading);
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #fff;
+      background: rgba(99, 102, 241, 0.15);
+      padding: 0.2rem 0.6rem;
+      border-radius: 0.375rem;
+      border: 1px solid rgba(99, 102, 241, 0.3);
+    }
+
+    .badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.2rem 0.5rem;
+      border-radius: 9999px;
+      text-transform: uppercase;
+    }
+
+    .badge-lobby { background: rgba(245, 158, 11, 0.15); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-playing { background: rgba(16, 185, 129, 0.15); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-finished { background: rgba(99, 102, 241, 0.15); color: var(--primary); border: 1px solid rgba(99, 102, 241, 0.3); }
+
+    .room-body {
+      display: none;
+      padding: 1rem;
+      border-top: 1px solid var(--border-color);
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    .room-item.expanded .room-body { display: block; }
+
+    .players-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.825rem;
+      margin-bottom: 1rem;
+    }
+
+    .players-table th, .players-table td {
+      padding: 0.5rem 0.75rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .location-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 0.15rem 0.5rem;
+      border-radius: 0.375rem;
+      font-size: 0.75rem;
+      color: #e5e7eb;
+    }
+
+    .no-rooms {
+      text-align: center;
+      padding: 2.5rem;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      border: 1px dashed var(--border-color);
+      border-radius: 0.75rem;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      background: #1f2937;
+      border-left: 4px solid var(--success);
+      color: white;
+      padding: 1rem 1.5rem;
+      border-radius: 0.5rem;
+      z-index: 1000;
+      transform: translateY(150%);
+      transition: transform 0.3s ease;
+      font-size: 0.875rem;
+    }
+
+    .toast.show { transform: translateY(0); }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <h1>Панель керування UkrFlow</h1>
+      <p>Центр моніторингу навантаження Mac, географії та активності гравців</p>
+    </div>
+    <div class="controls">
+      <div class="autorefresh-container">
+        <input type="checkbox" id="auto-refresh" checked>
+        <label for="auto-refresh">Автооновлення (2с)</label>
+      </div>
+      <button class="btn btn-secondary" onclick="fetchStats()">
+        Оновити
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Left Column: Active Rooms & Player Stats -->
+    <section>
+      <div class="dashboard-grid">
+        <div class="stat-card">
+          <div class="stat-title">Активні кімнати</div>
+          <div class="stat-value" id="stat-rooms">0</div>
+        </div>
+        <div class="stat-card pink">
+          <div class="stat-title">WebSocket З'єднання</div>
+          <div class="stat-value" id="stat-sockets">0</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-title">Гравців (Людей)</div>
+          <div class="stat-value" id="stat-humans">0</div>
+        </div>
+        <div class="stat-card yellow">
+          <div class="stat-title">Гравців (Ботів)</div>
+          <div class="stat-value" id="stat-bots">0</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <span>Активні ігрові сесії</span>
+          <button class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;" onclick="clearEmptyRooms()">
+            Очистити порожні
+          </button>
+        </div>
+        <div class="rooms-list" id="rooms-list-container">
+          <div class="no-rooms">
+            🎮 Немає активних ігор на даний момент.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right Column: System Load & Mac Performance -->
+    <aside>
+      <div class="system-card">
+        <h2 style="font-family:var(--font-heading);font-size:1.15rem;font-weight:600;margin-bottom:1rem;color:#fff;border-bottom:1px solid var(--border-color);padding-bottom:0.5rem;">
+          💻 Навантаження сервера (Server Stats)
+        </h2>
+
+        <div class="domain-badge">
+          <span class="domain-dot"></span>
+          <span>https://fastvid.online (Активний HTTPS)</span>
+        </div>
+
+        <!-- CPU Load Metric -->
+        <div class="metric-group">
+          <div class="metric-header">
+            <span class="metric-label">Процесор сервера (CPU):</span>
+            <span class="metric-value-text" id="sys-cpu" style="color:var(--success)">0%</span>
+          </div>
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="cpu-bar" style="width: 2%;"></div>
+          </div>
+        </div>
+
+        <!-- Process RAM Metric -->
+        <div class="metric-group">
+          <div class="metric-header">
+            <span class="metric-label">Оперативна пам'ять гри (RAM):</span>
+            <span class="metric-value-text" id="sys-process-ram" style="color:var(--success)">0 MB</span>
+          </div>
+          <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.2rem;">
+            Загалом у Mac: <span id="sys-ram-total">18.0 GB</span> (гра займає менше 1%)
+          </div>
+        </div>
+
+        <!-- Server Uptime -->
+        <div class="metric-group" style="margin-top:1rem;">
+          <div class="metric-header">
+            <span class="metric-label">Час роботи сервера (Uptime):</span>
+            <span class="metric-value-text" id="sys-uptime">0 хв</span>
+          </div>
+        </div>
+
+        <!-- CPU Model info -->
+        <div style="margin-top:1.25rem; padding-top:1rem; border-top:1px solid var(--border-color); font-size:0.8rem; color:var(--text-muted);">
+          <div>Процесор Mac: <strong style="color:#e5e7eb" id="sys-cpu-model">Apple M3 Pro</strong></div>
+          <div>Ядер CPU: <strong style="color:#e5e7eb" id="sys-cpu-cores">11</strong></div>
+          <div>Геолокація IP: <strong style="color:#10b981">Cloudflare GeoIP (Увімкнено)</strong></div>
+          <div>Безпека: <strong style="color:#10b981">Cloudflare Tunnel (Захищено)</strong></div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <div class="toast" id="toast">
+    <span id="toast-message">Операція успішна!</span>
+  </div>
+
+  <script>
+    let expandedRooms = new Set();
+    let refreshInterval = null;
+
+    function getCountryFlag(countryCode) {
+      if (!countryCode || countryCode === 'UA') return '🇺🇦';
+      if (countryCode === 'US') return '🇺🇸';
+      if (countryCode === 'PL') return '🇵🇱';
+      if (countryCode === 'DE') return '🇩🇪';
+      if (countryCode === 'GB') return '🇬🇧';
+      if (countryCode === 'CA') return '🇨🇦';
+      if (countryCode === 'CZ') return '🇨🇿';
+      if (countryCode === 'RO') return '🇷🇴';
+      if (countryCode === 'MD') return '🇲🇩';
+      if (countryCode === 'ES') return '🇪🇸';
+      if (countryCode === 'IT') return '🇮🇹';
+      if (countryCode === 'FR') return '🇫🇷';
+      try {
+        const codePoints = countryCode
+          .toUpperCase()
+          .split('')
+          .map(char => 127397 + char.charCodeAt(0));
+        return String.fromCodePoint(...codePoints);
+      } catch (e) {
+        return '🌐';
+      }
+    }
+
+    function showToast(message, isError = false) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-message').textContent = message;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    async function fetchStats() {
+      try {
+        const response = await fetch('/api/admin/status');
+        if (!response.ok) throw new Error('Server error');
+        const data = await response.json();
+
+        // Update counts
+        document.getElementById('stat-rooms').textContent = data.stats.totalRooms;
+        document.getElementById('stat-sockets').textContent = data.stats.totalConnections;
+        document.getElementById('stat-humans').textContent = data.stats.totalHumans;
+        document.getElementById('stat-bots').textContent = data.stats.totalBots;
+
+        // Update System Metrics
+        if (data.system) {
+          const cpu = data.system.cpuPercent || 0;
+          document.getElementById('sys-cpu').textContent = cpu + '%';
+          const cpuBar = document.getElementById('cpu-bar');
+          cpuBar.style.width = Math.max(5, cpu) + '%';
+
+          document.getElementById('sys-process-ram').textContent = (data.system.processMemoryMB || 0) + ' MB';
+          document.getElementById('sys-ram-total').textContent = (data.system.ramTotalGB || 18.0) + ' GB';
+          document.getElementById('sys-uptime').textContent = data.system.uptime || '0s';
+          document.getElementById('sys-cpu-cores').textContent = data.system.cpuCores || '11';
+          document.getElementById('sys-cpu-model').textContent = data.system.cpuModel || 'Apple M3 Pro';
+        }
+
+        // Render Rooms
+        const container = document.getElementById('rooms-list-container');
+        if (data.rooms.length === 0) {
+          container.innerHTML = `<div class="no-rooms">🎮 Немає активних ігор на даний момент.</div>`;
+          return;
+        }
+
+        let html = '';
+        data.rooms.forEach(room => {
+          const isExpanded = expandedRooms.has(room.roomId);
+          const expandedClass = isExpanded ? 'expanded' : '';
+          
+          let statusBadgeClass = room.status === 'PLAYING' ? 'badge-playing' : (room.status === 'FINISHED' ? 'badge-finished' : 'badge-lobby');
+          let statusName = room.status === 'PLAYING' ? 'Гра' : (room.status === 'FINISHED' ? 'Завершено' : 'Лоббі');
+
+          const botCount = room.players.filter(p => p.isBot).length;
+          const humanCount = room.players.length - botCount;
+
+          html += `
+            <div class="room-item ${expandedClass}" id="room-card-${room.roomId}">
+              <div class="room-header" onclick="toggleRoom('${room.roomId}')">
+                <div>
+                  <span class="room-code">${room.roomId}</span>
+                  <span class="badge ${statusBadgeClass}">${statusName}</span>
+                  <span style="font-size:0.8rem;color:var(--text-muted);margin-left:0.5rem;">${room.players.length} гравців (${humanCount} люд / ${botCount} бот)</span>
+                </div>
+                <button class="btn btn-secondary" style="padding:0.2rem 0.5rem;font-size:0.7rem;" onclick="event.stopPropagation(); deleteRoom('${room.roomId}')">Закрити</button>
+              </div>
+              <div class="room-body">
+                <table class="players-table">
+                  <thead>
+                    <tr>
+                      <th>Гравець</th>
+                      <th>Місто / Країна</th>
+                      <th>Професія</th>
+                      <th>Готівка (₴)</th>
+                      <th>Пасивний дохід (₴)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${room.players.map(p => `
+                      <tr>
+                        <td><span style="color:${p.color}">●</span> ${p.name} ${p.isBot ? '(Бот)' : ''}</td>
+                        <td>
+                          <span class="location-badge">
+                            ${getCountryFlag(p.country)} ${p.city || (p.isBot ? 'ШІ Бот' : 'Київ')}
+                          </span>
+                        </td>
+                        <td>${p.career?.name || 'Не обрано'}</td>
+                        <td>${p.cash.toLocaleString('uk-UA')} ₴</td>
+                        <td>${p.passiveIncome.toLocaleString('uk-UA')} ₴</td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          `;
+        });
+        container.innerHTML = html;
+      } catch (err) {
+        console.error('Stats fetch error', err);
+      }
+    }
+
+    function toggleRoom(roomId) {
+      if (expandedRooms.has(roomId)) expandedRooms.delete(roomId);
+      else expandedRooms.add(roomId);
+      fetchStats();
+    }
+
+    async function deleteRoom(roomId) {
+      if (!confirm(`Закрити кімнату ${roomId}?`)) return;
+      await fetch(`/api/admin/rooms/${roomId}`, { method: 'DELETE' });
+      showToast(`Кімнату ${roomId} закрито`);
+      fetchStats();
+    }
+
+    async function clearEmptyRooms() {
+      const res = await fetch('/api/admin/rooms/clear-empty', { method: 'POST' });
+      const data = await res.json();
+      showToast(`Очищено порожніх кімнат: ${data.clearedCount}`);
+      fetchStats();
+    }
+
+    const autoRefreshCheckbox = document.getElementById('auto-refresh');
+    autoRefreshCheckbox.addEventListener('change', (e) => {
+      if (e.target.checked) refreshInterval = setInterval(fetchStats, 2000);
+      else clearInterval(refreshInterval);
+    });
+
+    fetchStats();
+    refreshInterval = setInterval(fetchStats, 2000);
+  </script>
+</body>
+</html>
